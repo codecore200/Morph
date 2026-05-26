@@ -1,0 +1,18 @@
+/* 캔버스 가운데 정렬 + 전체 화면 다크 배경 */
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #1A1B2E;
+  overflow: hidden;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+canvas {
+  display: block;
+}

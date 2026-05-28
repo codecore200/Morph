@@ -99,15 +99,15 @@ function drawTitleScreen() {
   drawShapeOutline("triangle", 36, true);
   pop();
 
-  // 부제
+  // 부제 (게임 주제)
   fill(COLOR.uiText);
   textStyle(NORMAL);
   textSize(14);
-  text("Shape · Morph · Solve", width / 2, height / 2 + 40);
+  text("형태 변환 퍼즐 플랫포머", width / 2, height / 2 + 40);
 
   // Start 버튼
   titleStartBtn.x = width / 2 - titleStartBtn.w / 2;
-  titleStartBtn.y = height / 2 + 80;
+  titleStartBtn.y = height / 2 + 70;
   let hover = isPointInRect(mouseX, mouseY, titleStartBtn);
   fill(hover ? COLOR.uiBtnHover : COLOR.uiBtn);
   stroke(COLOR.clear);
@@ -120,11 +120,24 @@ function drawTitleScreen() {
   textAlign(CENTER, CENTER);
   text("START", width / 2, titleStartBtn.y + titleStartBtn.h / 2);
 
-  // 풀스크린 안내
+  // 사용법 (3줄)
+  textStyle(NORMAL);
+  textSize(12);
+  fill(COLOR.uiText);
+  let helpY = titleStartBtn.y + titleStartBtn.h + 26;
+  text("← / → : 이동      SPACE / ↑ : 점프      F : 풀스크린", width / 2, helpY);
+  fill(COLOR.circle);
+  text("Q : 원", width / 2 - 110, helpY + 18);
+  fill(COLOR.square);
+  text("W : 사각형", width / 2, helpY + 18);
+  fill(COLOR.triangle);
+  text("E : 삼각형", width / 2 + 110, helpY + 18);
+
+  // 제작자
   textStyle(NORMAL);
   textSize(11);
   fill(COLOR.uiBtnHover);
-  text("F: Fullscreen   |   Q / W / E: Circle · Square · Triangle", width / 2, height - 24);
+  text("Made by 신동빈 · 장현우 · 황세혁    |    14조", width / 2, height - 18);
 }
 
 /**

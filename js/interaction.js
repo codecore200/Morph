@@ -160,22 +160,9 @@ function blockOnSolid(solid) {
 
 /**
  * @function blockOnDoor
- * 닫힌 문은 사각형이 아닐 경우 진행을 막는 단순 솔리드 처리
+ * 닫힌 문은 모든 도형에 대해 솔리드. 문은 외부 메커니즘(버튼 등)으로만 열림
  */
 function blockOnDoor(door) {
   if (!door.isExist) return;
-  let pb = getPlayerBounds();
-  if (!isColliding(pb, door)) return;
-  if (player.shape === "square") {
-    handleDoorInteraction(door);
-    return;
-  }
-  // 좌/우에서 막기
-  if (player.x < door.x) {
-    player.x = door.x - player.size / 2;
-    player.vx = 0;
-  } else {
-    player.x = door.x + door.w + player.size / 2;
-    player.vx = 0;
-  }
+  blockOnSolid(door);
 }

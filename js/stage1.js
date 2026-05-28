@@ -56,8 +56,21 @@ function updateBoxPhysics() {
 }
 
 /**
+ * @function canBoxOccupy
+ * 박스가 주어진 사각형 영역을 점유할 수 있는지 — 닫힌 문/벽과 겹치면 false
+ */
+function canBoxOccupy(boxRect) {
+  if (stage1Door.isExist && isColliding(boxRect, stage1Door)) return false;
+  for (let w of stage1Walls) {
+    if (isColliding(boxRect, w)) return false;
+  }
+  return true;
+}
+
+/**
  * @function boxCollision
- * 사각형 상태일 때 상자 밀기 물리 + 벽면 관통 방지 (AABB 분리)
+ * 사각형 상태일 때 상자 밀기 물리 + 벽면 관통 방지 (AABB 분리).
+ * 박스의 새 위치가 솔리드와 겹치면 박스 못 밀고 플레이어가 분리됨.
  */
 function boxCollision() {
   let pb = getPlayerBounds();
@@ -75,15 +88,27 @@ function boxCollision() {
   if (overlapX < overlapY) {
     // 수평 충돌
     if (player.x < stage1Box.x) {
-      if (player.shape === "square") {
-        stage1Box.x += overlapX;
+      let newBox = {
+        x: stage1Box.x + overlapX,
+        y: stage1Box.y,
+        w: stage1Box.w,
+        h: stage1Box.h,
+      };
+      if (player.shape === "square" && canBoxOccupy(newBox)) {
+        stage1Box.x = newBox.x;
       } else {
         player.x -= overlapX;
         player.vx = 0;
       }
     } else {
-      if (player.shape === "square") {
-        stage1Box.x -= overlapX;
+      let newBox = {
+        x: stage1Box.x - overlapX,
+        y: stage1Box.y,
+        w: stage1Box.w,
+        h: stage1Box.h,
+      };
+      if (player.shape === "square" && canBoxOccupy(newBox)) {
+        stage1Box.x = newBox.x;
       } else {
         player.x += overlapX;
         player.vx = 0;
@@ -107,21 +132,13 @@ function boxCollision() {
  * 상자(또는 플레이어)가 버튼을 누르면 연동된 문 삭제
  */
 function buttonFunction() {
-  // 상자가 버튼을 누르는지
+  // 오직 상자만 버튼을 누를 수 있음 (기획안 8.5)
   let boxAbove =
     stage1Box.x < stage1Button.x + stage1Button.w &&
     stage1Box.x + stage1Box.w > stage1Button.x &&
     stage1Box.y + stage1Box.h >= stage1Button.y - 4;
 
-  // 플레이어가 버튼을 누르는지
-  let pb = getPlayerBounds();
-  let playerAbove =
-    pb.x < stage1Button.x + stage1Button.w &&
-    pb.x + pb.w > stage1Button.x &&
-    pb.y + pb.h >= stage1Button.y - 4 &&
-    player.shape === "square";
-
-  if (boxAbove || playerAbove) {
+  if (boxAbove) {
     stage1Button.isPressed = true;
     stage1Door.isExist = false;
   } else {

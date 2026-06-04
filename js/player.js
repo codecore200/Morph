@@ -121,14 +121,16 @@ function drawPlayer() {
   push();
   translate(player.x, player.y);
 
-  // 모핑 중 외곽 잔상
+  // 모핑 중 외곽 잔상 (morphT 진행에 따라 서서히 사라짐)
   if (isMorphing) {
     let prevColor = COLOR[player.morphFromShape];
     noFill();
     stroke(prevColor);
     strokeWeight(2);
     let ghostSize = lerp(s * 1.4, s, morphT);
+    drawingContext.globalAlpha = 1 - morphT;
     drawShapeOutline(player.morphFromShape, ghostSize);
+    drawingContext.globalAlpha = 1;
   }
 
   noStroke();

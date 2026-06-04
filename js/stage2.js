@@ -14,8 +14,8 @@ let stage2Grounds = [
   { x: 540, y: 480, w: CANVAS_W - 540, h: 60 },
 ];
 let stage2Door = { x: 720, y: 380, w: 18, h: 100, isExist: true };
-// 사각형 인식 패널 — 사각형 도형이 위에 올라서면 활성화되어 문이 영구적으로 열림
-let stage2ShapeSensor = { x: 696, y: 472, w: 20, h: 8, activated: false };
+// 사각형 인식 패널 — 풍선을 모두 터뜨려야 바닥에서 솟아오름. 그 뒤 사각형으로 밟으면 문이 열림
+let stage2ShapeSensor = { x: 696, y: 472, w: 20, h: 8, activated: false, revealed: false, revealedAt: 0, targetY: 472 };
 // 클리어 아이템은 확장된 우측 영역 끝 근처에 배치 (낙하 삼각형 구간 너머)
 let stage2ClearItem = { x: CANVAS_W - 70, y: 430, w: 24, h: 32 };
 // 문 위 천장 벽 (점프 우회 방지). 우측 플랫폼 위에 배치
@@ -48,7 +48,7 @@ function loadStage2Layout() {
   ];
 
   stage2Door = { x: 720, y: 380, w: 18, h: 100, isExist: true };
-  stage2ShapeSensor = { x: 696, y: 472, w: 20, h: 8, activated: false };
+  stage2ShapeSensor = { x: 696, y: 472, w: 20, h: 8, activated: false, revealed: false, revealedAt: 0, targetY: 472 };
   stage2ClearItem = { x: CANVAS_W - 70, y: 430, w: 24, h: 32 };
 
   // 우측 통로의 낙하 삼각형 장애물 웨이브 셋업
@@ -171,11 +171,25 @@ function drawStage2Hazards() {
 }
 
 /**
+ * @function revealSensorWhenBalloonsGone
+ * 살아있는 풍선이 하나도 없을 때 센서를 처음 공개 (바닥에서 솟아오르는 트리거)
+ */
+function revealSensorWhenBalloonsGone() {
+  if (stage2ShapeSensor.revealed) return;
+  if (stage2Balloons.some(b => b.alive)) return;
+  stage2ShapeSensor.revealed = true;
+  stage2ShapeSensor.revealedAt = millis();
+}
+
+/**
  * @function handleShapeSensor
- * 사각형 도형이 패널 위에 닿으면 영구 활성화 + 문 개방
+ * 사각형 도형이 패널 위에 닿으면 영구 활성화 + 문 개방.
+ * 풍선이 모두 터져 센서가 공개(revealed)된 뒤, 솟아오르는 애니메이션이 끝나야 인식 시작
  */
 function handleShapeSensor(sensor, door) {
+  if (!sensor.revealed) return;
   if (sensor.activated) return;
+  if (millis() - sensor.revealedAt < 500) return; // 솟아오르는 중에는 인식 불가
   if (!isColliding(getPlayerBounds(), sensor)) return;
   if (player.shape !== "square") return;
   sensor.activated = true;
@@ -300,6 +314,9 @@ function updateStage2() {
     handleBalloonInteraction(b);
   }
 
+  // 풍선이 모두 터지면 바닥 패널 공개
+  revealSensorWhenBalloonsGone();
+
   // 천장 벽
   for (let w of stage2Walls) blockOnSolid(w);
 
@@ -372,40 +389,65 @@ function drawStage2() {
     rect(w.x, w.y, w.w, w.h, 2);
   }
 
-  // 사각형 인식 패널 (문 앞)
-  push();
-  let sensor = stage2ShapeSensor;
-  let sensorPulse = 1 + 0.06 * sin(millis() * 0.006);
-  noStroke();
-  if (sensor.activated) {
-    // 활성화 — 초록색 채움 + 잔잔한 글로우
-    fill(COLOR.clear);
-    rect(sensor.x, sensor.y, sensor.w, sensor.h, 3);
-    noFill();
-    stroke(COLOR.clear);
-    strokeWeight(2);
-    drawingContext.globalAlpha = 0.5;
-    rect(sensor.x - 3, sensor.y - 3, sensor.w + 6, sensor.h + 6, 5);
-    drawingContext.globalAlpha = 1;
-  } else {
-    // 대기 — 사각형 색 외곽선 + 어두운 내부
-    fill(COLOR.bgFar);
-    stroke(COLOR.square);
-    strokeWeight(2);
-    rect(sensor.x, sensor.y, sensor.w, sensor.h, 3);
+  // 사각형 인식 패널 (문 앞) — 풍선을 모두 터뜨리면 바닥에서 솟아오름
+  if (stage2ShapeSensor.revealed) {
+    let sensor = stage2ShapeSensor;
+    let floorY = stage2Grounds[1].y; // 480 — 플랫폼 윗면
+    let elapsed = millis() - sensor.revealedAt;
+    let riseT = constrain(elapsed / 500, 0, 1);
+    // 바닥면(floorY)에서 targetY까지 솟아오름
+    let drawY = lerp(floorY, sensor.targetY, riseT);
+    let sensorPulse = riseT >= 1 ? 1 + 0.06 * sin(millis() * 0.006) : 1;
+
+    // 바닥 위로 올라온 부분만 보이도록 클립
+    drawingContext.save();
+    drawingContext.beginPath();
+    drawingContext.rect(0, 0, CANVAS_W, floorY);
+    drawingContext.clip();
+
+    push();
+    noStroke();
+    if (sensor.activated) {
+      fill(COLOR.clear);
+      rect(sensor.x, drawY, sensor.w, sensor.h, 3);
+      noFill();
+      stroke(COLOR.clear);
+      strokeWeight(2);
+      drawingContext.globalAlpha = 0.5;
+      rect(sensor.x - 3, drawY - 3, sensor.w + 6, sensor.h + 6, 5);
+      drawingContext.globalAlpha = 1;
+    } else {
+      fill(COLOR.bgFar);
+      stroke(COLOR.square);
+      strokeWeight(2);
+      rect(sensor.x, drawY, sensor.w, sensor.h, 3);
+    }
+    noStroke();
+    fill(sensor.activated ? COLOR.bg : COLOR.square);
+    let iconSize = 8 * sensorPulse;
+    rect(
+      sensor.x + sensor.w / 2 - iconSize / 2,
+      drawY + sensor.h / 2 - iconSize / 2,
+      iconSize,
+      iconSize,
+      1
+    );
+    pop();
+
+    drawingContext.restore();
+
+    // 솟아오르는 동안 바닥 위 글로우 링
+    if (riseT < 1) {
+      push();
+      noFill();
+      stroke(COLOR.square);
+      strokeWeight(2);
+      drawingContext.globalAlpha = (1 - riseT) * 0.7;
+      ellipse(sensor.x + sensor.w / 2, floorY, 28 + riseT * 24);
+      drawingContext.globalAlpha = 1;
+      pop();
+    }
   }
-  // 내부 사각형 아이콘 (인식 대상 표시)
-  noStroke();
-  fill(sensor.activated ? COLOR.bg : COLOR.square);
-  let iconSize = 8 * sensorPulse;
-  rect(
-    sensor.x + sensor.w / 2 - iconSize / 2,
-    sensor.y + sensor.h / 2 - iconSize / 2,
-    iconSize,
-    iconSize,
-    1
-  );
-  pop();
 
   // 문
   if (stage2Door.isExist) {
@@ -448,7 +490,7 @@ function drawStage2() {
   textSize(12);
   textStyle(NORMAL);
   text(
-    "Hint: 원(Q)으로 경사 굴러 절벽 넘기 → 삼각형(E)으로 풍선 터뜨리기 → 사각형(W)으로 문 앞 패널 밟기 → 원(Q)으로 빠르게 삼각형 비 피해 골인",
+    "Hint: 원(Q)으로 경사 굴러 절벽 넘기 → 삼각형(E)으로 풍선 모두 터뜨리기 → 패널이 솟아오르면 사각형(W)으로 밟아 문 열기 → 원(Q)으로 삼각형 비 피해 골인",
     16,
     GROUND_Y - 6
   );

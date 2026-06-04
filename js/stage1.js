@@ -102,7 +102,12 @@ function boxCollision() {
     stage1Box.y + stage1Box.h - pb.y
   );
 
-  if (overlapX < overlapY) {
+  // 상승 중(vy < 0)에 플레이어 하단이 박스 상단을 막 지나칠 때 overlapY가 극소화되어
+  // 수평 접근임에도 수직 충돌로 오판 → vy = 0 설정으로 점프가 강제 중단되는 버그 방지.
+  // 플레이어 중심이 박스 상단보다 위에 있고 위로 이동 중이면 수평으로 처리.
+  let resolveAsHorizontal = overlapX < overlapY || (player.vy < 0 && player.y < stage1Box.y);
+
+  if (resolveAsHorizontal) {
     // 수평 충돌
     if (player.x < stage1Box.x) {
       let newBox = {

@@ -1,7 +1,7 @@
 // 게임 전반의 매직 넘버 · 색 팔레트 · 상태 문자열 모음
 
-// 캔버스 크기
-const CANVAS_W = 900;
+// 캔버스 크기 — 가로를 1600으로 늘려 우측 통로에 '파도형 낙하 삼각형' 회피 구간 확보
+const CANVAS_W = 1600;
 const CANVAS_H = 540;
 
 // 물리 상수
@@ -15,6 +15,12 @@ const MORPH_COOLDOWN_MS = 1000;
 
 // 별 감산 주기 (초)
 const STAR_INTERVAL_SEC = 10;
+
+// Stage 2 떨어지는 삼각형 장애물 (파도처럼 순차 낙하 — 원으로 빠르게 통과)
+const HAZARD_COUNT = 10; // 통로를 덮는 삼각형 개수
+const HAZARD_WAVE_INTERVAL = 12; // 다음 삼각형이 떨어지기까지의 프레임 간격 (작을수록 빠른 폭격)
+const HAZARD_DROP_SPEED = 7; // 삼각형 낙하 속도 (px/frame)
+const HAZARD_SIZE = 28; // 삼각형 크기 (한 변 기준)
 
 // 마지막 스테이지 번호
 const LAST_STAGE = 2;

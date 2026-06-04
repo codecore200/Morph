@@ -7,21 +7,21 @@ const SHAPE_STATS = {
     friction: 0.92,
     jumpForce: 14,
     moveSpeed: 4.0,
-    size: 28,
+    size: 24,
   },
   square: {
     mass: 1.6,
     friction: 0.75,
     jumpForce: 8,
     moveSpeed: 2.8,
-    size: 34,
+    size: 28,
   },
   triangle: {
     mass: 1.0,
     friction: 0.85,
     jumpForce: 11,
     moveSpeed: 3.5,
-    size: 30,
+    size: 26,
   },
 };
 
@@ -133,16 +133,16 @@ function drawPlayer() {
 
   noStroke();
   fill(mainColor);
-  drawShapeOutline(player.shape, s, true);
+  drawShapeOutline(player.shape, s);
 
   pop();
 }
 
 /**
  * @function drawShapeOutline
- * 도형 종류에 따른 그리기 (filled=true면 채움, 아니면 stroke만)
+ * 도형 종류에 따른 외곽 경로 그리기 (채움/외곽선은 호출 전 fill·noFill·stroke로 결정)
  */
-function drawShapeOutline(shapeType, size, filled) {
+function drawShapeOutline(shapeType, size) {
   if (shapeType === "circle") {
     ellipse(0, 0, size, size);
   } else if (shapeType === "square") {

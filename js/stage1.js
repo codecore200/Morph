@@ -4,17 +4,20 @@
 let stage1StartTime = 0;
 let stage1ElapsedTime = 0;
 let stage1Stars = 3;
-let stage1Box = { x: 320, y: 380, w: 40, h: 40, vy: 0 };
-let stage1Button = { x: 540, y: 470, w: 60, h: 10, isPressed: false };
+let stage1Box = { x: 320, y: 380, w: 32, h: 32, vy: 0 };
+// 버튼은 구덩이(핏) 바닥에 위치 — 박스가 떨어져야만 닿을 수 있음
+let stage1Button = { x: 520, y: 520, w: 100, h: 20, isPressed: false };
 let stage1Door = { x: 700, y: 380, w: 18, h: 100, isExist: true };
-let stage1ClearItem = { x: 820, y: 430, w: 30, h: 40 };
+// 클리어 아이템은 확장된 우측 영역 끝 근처에 배치 — 그 사이 공간이 새 요소 추가용
+let stage1ClearItem = { x: 1320, y: 430, w: 24, h: 32 };
 // 문 위 천장 (점프 우회 방지). 너비 235 > 원 점프 비행 거리 187
 let stage1Walls = [
   { x: 580, y: 50, w: 235, h: 330 },
 ];
-// Stage 1 바닥 — 단일 솔리드 (전체 폭)
+// Stage 1 바닥 — 좌·우 분리, 사이 100px 구덩이 (x=520~620). 우측은 확장된 캔버스 끝까지
 let stage1Grounds = [
-  { x: 0, y: GROUND_Y, w: 900, h: 60 },
+  { x: 0, y: GROUND_Y, w: 520, h: 60 },
+  { x: 620, y: GROUND_Y, w: CANVAS_W - 620, h: 60 },
 ];
 
 /**
@@ -32,10 +35,10 @@ function initialStage1() {
   player.cooldownEndTime = 0;
   setShapeStats("square");
 
-  stage1Box = { x: 320, y: 380, w: 40, h: 40, vy: 0 };
-  stage1Button = { x: 540, y: 470, w: 60, h: 10, isPressed: false };
+  stage1Box = { x: 320, y: 380, w: 32, h: 32, vy: 0 };
+  stage1Button = { x: 520, y: 520, w: 100, h: 20, isPressed: false };
   stage1Door = { x: 700, y: 380, w: 18, h: 100, isExist: true };
-  stage1ClearItem = { x: 820, y: 430, w: 30, h: 40 };
+  stage1ClearItem = { x: 1320, y: 430, w: 24, h: 32 };
 
   stage1StartTime = millis();
   stage1ElapsedTime = 0;
@@ -44,13 +47,23 @@ function initialStage1() {
 
 /**
  * @function updateBoxPhysics
- * 상자에 중력 · 바닥 충돌만 적용 (위치는 boxCollision이 갱신)
+ * 상자에 중력 적용 + 좌·우 지면 / 버튼(핏 바닥) 중 박스 중심 x가 닿는 가장 높은 표면에서 정지.
+ * 박스 중심이 구덩이 위에 오면 떠받칠 솔리드가 사라져 자유낙하 → 버튼 위로 떨어짐
  */
 function updateBoxPhysics() {
   stage1Box.vy = (stage1Box.vy || 0) + GRAVITY * 0.6;
   stage1Box.y += stage1Box.vy;
-  if (stage1Box.y + stage1Box.h >= GROUND_Y) {
-    stage1Box.y = GROUND_Y - stage1Box.h;
+
+  // 박스 가로 범위와 겹치는 솔리드(좌·우 지면, 버튼) 중 가장 위 표면을 바닥으로 사용
+  // 박스의 어느 부분이라도 지면 위에 걸쳐 있으면 떠받쳐짐 → 완전히 절벽을 넘은 뒤에만 추락
+  let surfaces = stage1Grounds.concat([stage1Button]);
+  let floorY = Infinity;
+  for (let s of surfaces) {
+    let xOverlap = stage1Box.x + stage1Box.w > s.x && stage1Box.x < s.x + s.w;
+    if (xOverlap && s.y < floorY) floorY = s.y;
+  }
+  if (stage1Box.y + stage1Box.h >= floorY) {
+    stage1Box.y = floorY - stage1Box.h;
     stage1Box.vy = 0;
   }
 }
@@ -63,6 +76,10 @@ function canBoxOccupy(boxRect) {
   if (stage1Door.isExist && isColliding(boxRect, stage1Door)) return false;
   for (let w of stage1Walls) {
     if (isColliding(boxRect, w)) return false;
+  }
+  // 좌·우 지면이 구덩이 측벽 역할 — 박스가 핏 바깥으로 새지 못하도록
+  for (let g of stage1Grounds) {
+    if (isColliding(boxRect, g)) return false;
   }
   return true;
 }
@@ -152,26 +169,37 @@ function buttonFunction() {
  * Stage 1 지형 · 상자 · 버튼 · 문 · 클리어 아이템 렌더링
  */
 function drawStage1() {
-  // 바닥
+  // 좌·우 지면 (사이는 구덩이)
   noStroke();
   fill(COLOR.terrain);
-  rect(0, GROUND_Y, width, height - GROUND_Y);
+  for (let g of stage1Grounds) {
+    rect(g.x, g.y, g.w, g.h);
+  }
   fill(COLOR.terrainHi);
-  rect(0, GROUND_Y, width, 3);
+  for (let g of stage1Grounds) {
+    rect(g.x, g.y, g.w, 3);
+  }
+
+  // 구덩이 측벽 위험 라인 (절벽 끝 빨간 마커)
+  stroke(COLOR.spike);
+  strokeWeight(2);
+  let leftG = stage1Grounds[0];
+  let rightG = stage1Grounds[1];
+  line(leftG.x + leftG.w, leftG.y, leftG.x + leftG.w, leftG.y + 24);
+  line(rightG.x, rightG.y, rightG.x, rightG.y + 24);
 
   // 상자
+  noStroke();
   fill(COLOR.box);
   stroke(COLOR.terrainHi);
   strokeWeight(2);
   rect(stage1Box.x, stage1Box.y, stage1Box.w, stage1Box.h, 4);
 
-  // 버튼
+  // 버튼 (구덩이 바닥)
   noStroke();
   fill(stage1Button.isPressed ? COLOR.clear : COLOR.spike);
   let by = stage1Button.isPressed ? stage1Button.y + 4 : stage1Button.y;
   rect(stage1Button.x, by, stage1Button.w, stage1Button.h, 3);
-  fill(COLOR.terrainHi);
-  rect(stage1Button.x - 5, stage1Button.y + 10, stage1Button.w + 10, 4);
 
   // 문 위 천장 벽
   fill(COLOR.terrain);
@@ -192,30 +220,32 @@ function drawStage1() {
     ellipse(stage1Door.x + stage1Door.w - 4, stage1Door.y + stage1Door.h / 2, 4, 4);
   }
 
-  // 클리어 아이템
-  push();
-  translate(
-    stage1ClearItem.x + stage1ClearItem.w / 2,
-    stage1ClearItem.y + stage1ClearItem.h / 2
-  );
-  let pulse = 1 + 0.08 * sin(millis() * 0.005);
-  scale(pulse);
-  noStroke();
-  fill(COLOR.clear);
-  rect(-stage1ClearItem.w / 2, -stage1ClearItem.h / 2, stage1ClearItem.w, stage1ClearItem.h, 4);
-  fill(COLOR.bg);
-  textAlign(CENTER, CENTER);
-  textSize(16);
-  textStyle(BOLD);
-  text("★", 0, 1);
-  pop();
+  // 클리어 아이템 (획득 후에는 숨김 — 파티클 이펙트가 자리를 대체)
+  if (!stage1ClearItem.collected) {
+    push();
+    translate(
+      stage1ClearItem.x + stage1ClearItem.w / 2,
+      stage1ClearItem.y + stage1ClearItem.h / 2
+    );
+    let pulse = 1 + 0.08 * sin(millis() * 0.005);
+    scale(pulse);
+    noStroke();
+    fill(COLOR.clear);
+    rect(-stage1ClearItem.w / 2, -stage1ClearItem.h / 2, stage1ClearItem.w, stage1ClearItem.h, 4);
+    fill(COLOR.bg);
+    textAlign(CENTER, CENTER);
+    textSize(16);
+    textStyle(BOLD);
+    text("★", 0, 1);
+    pop();
+  }
 
   // 힌트 텍스트
   fill(COLOR.uiText);
   textAlign(LEFT, BOTTOM);
   textSize(12);
   textStyle(NORMAL);
-  text("Hint: 사각형으로 상자를 밀어 버튼 위에 올리세요", 16, GROUND_Y - 6);
+  text("Hint: 사각형으로 상자를 밀어 구덩이에 떨어뜨려 버튼을 누르세요", 16, GROUND_Y - 6);
 }
 
 /**
@@ -225,6 +255,8 @@ function drawStage1() {
 function updateStage1() {
   updateBoxPhysics();
   for (let g of stage1Grounds) blockOnSolid(g);
+  // 버튼은 박스만 인식해 문을 열지만, 발판 자체는 플레이어에게도 솔리드 (빠진 뒤 탈출 가능)
+  blockOnSolid(stage1Button);
   boxCollision();
   for (let w of stage1Walls) blockOnSolid(w);
   blockOnDoor(stage1Door);

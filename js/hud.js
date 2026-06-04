@@ -6,6 +6,8 @@
  */
 function timeAndStar() {
   if (gameState !== STATE.PLAYING) return;
+  // 클리어 이펙트 재생 동안에는 픽업 시점 시간/별을 고정
+  if (clearEffect.active) return;
   if (currentStage === 1) {
     stage1ElapsedTime = floor((millis() - stage1StartTime) / 1000);
     let lost = floor(stage1ElapsedTime / STAR_INTERVAL_SEC);
@@ -54,7 +56,12 @@ function headerUI() {
   let elapsed = getCurrentElapsed();
   let mm = nf(floor(elapsed / 60), 2);
   let ss = nf(elapsed % 60, 2);
-  text("STAGE " + currentStage + "   |   TIME " + mm + ":" + ss, 20, 25);
+  let bgmLabel = isBGMMuted() ? "BGM OFF" : "BGM ON";
+  text(
+    "STAGE " + currentStage + "   |   TIME " + mm + ":" + ss + "   |   " + bgmLabel,
+    20,
+    25
+  );
 
   // 중앙: 변신 쿨다운 게이지
   let cdRemain = max(0, player.cooldownEndTime - millis());

@@ -69,24 +69,31 @@ function checkBalloonCollision(balloon) {
 
 /**
  * @function popBalloon
- * 풍선 제거 + 터지는 효과 / 사운드 트리거
+ * 풍선 제거 + 파편 폭발 이펙트 + 사운드 트리거
  */
 function popBalloon(balloon) {
   balloon.alive = false;
   balloon.poppedAt = millis();
+  spawnBalloonPop(balloon.x + balloon.w / 2, balloon.y + balloon.h / 2);
   playBGM("pop");
 }
 
 /**
  * @function handleBalloonInteraction
- * 충돌 AND 삼각형일 때만 popBalloon 호출
+ * 삼각형이면 풍선을 터뜨림, 그 외 도형이면 풍선이 솔리드 장애물로 길을 막음
  */
 function handleBalloonInteraction(balloon) {
+  if (!balloon.alive) return;
   if (!checkBalloonCollision(balloon)) return;
-  if (player.shape !== "triangle") return;
-  popBalloon(balloon);
-  // 풍선 터질 때 위쪽으로 살짝 튕겨오름
-  player.vy = -getJumpForce(player.shape) * 0.6;
+
+  if (player.shape === "triangle") {
+    popBalloon(balloon);
+    // 풍선 터질 때 위쪽으로 살짝 튕겨오름
+    player.vy = -getJumpForce(player.shape) * 0.6;
+  } else {
+    // 삼각형 외 도형은 풍선을 못 뚫음 — AABB 분리로 가로/세로 모두 차단
+    blockOnSolid(balloon);
+  }
 }
 
 /**
@@ -106,16 +113,6 @@ function openDoor(door) {
   door.isExist = false;
   door.openedAt = millis();
   playBGM("door");
-}
-
-/**
- * @function handleDoorInteraction
- * 충돌 AND 사각형일 때만 openDoor 호출
- */
-function handleDoorInteraction(door) {
-  if (!checkDoorCollision(door)) return;
-  if (player.shape !== "square") return;
-  openDoor(door);
 }
 
 /**

@@ -42,12 +42,8 @@ function getPlayerBounds() {
 
 /**
  * @function setGameState
- * gameState 변경 + 화면 전환 부수 효과 처리
+ * gameState 변경 (스테이지 시작 시간은 각 initialStageX가 설정하므로 여기선 상태만 전환)
  */
 function setGameState(newState) {
   gameState = newState;
-  if (newState === STATE.PLAYING) {
-    stage1StartTime = millis();
-    stage2StartTime = millis();
-  }
 }

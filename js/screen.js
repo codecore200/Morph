@@ -63,7 +63,7 @@ function drawTitleScreen() {
     stroke(COLOR[s.shape]);
     strokeWeight(1.5);
     drawingContext.globalAlpha = 0.4;
-    drawShapeOutline(s.shape, s.size, false);
+    drawShapeOutline(s.shape, s.size);
     drawingContext.globalAlpha = 1;
     pop();
   }
@@ -84,19 +84,19 @@ function drawTitleScreen() {
   translate(cx - gap, cy);
   noStroke();
   fill(COLOR.circle);
-  drawShapeOutline("circle", 36, true);
+  drawShapeOutline("circle", 36);
   pop();
   push();
   translate(cx, cy);
   noStroke();
   fill(COLOR.square);
-  drawShapeOutline("square", 36, true);
+  drawShapeOutline("square", 36);
   pop();
   push();
   translate(cx + gap, cy);
   noStroke();
   fill(COLOR.triangle);
-  drawShapeOutline("triangle", 36, true);
+  drawShapeOutline("triangle", 36);
   pop();
 
   // 부제 (게임 주제)
@@ -125,7 +125,7 @@ function drawTitleScreen() {
   textSize(12);
   fill(COLOR.uiText);
   let helpY = titleStartBtn.y + titleStartBtn.h + 26;
-  text("← / → : 이동      SPACE / ↑ : 점프      F : 풀스크린", width / 2, helpY);
+  text("← / → : 이동    SPACE / ↑ : 점프    F : 풀스크린    M : 음소거", width / 2, helpY);
   fill(COLOR.circle);
   text("Q : 원", width / 2 - 110, helpY + 18);
   fill(COLOR.square);
@@ -278,6 +278,7 @@ function stageSelectClick() {
  */
 function moveToStage(stageNumber) {
   currentStage = stageNumber;
+  resetClearEffect();
   if (stageNumber === 1) {
     initialStage1();
   } else if (stageNumber === 2) {

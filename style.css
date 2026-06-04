@@ -1,22 +1,11 @@
-/* 캔버스가 뷰포트를 채우도록 스케일링 — 5:3 비율 유지(letterbox) */
+/* 캔버스가 항상 브라우저 창 전체를 채움 — 스케일링은 main.js의 scale()이 담당 */
 html, body {
   margin: 0;
   padding: 0;
   background: #1A1B2E;
   overflow: hidden;
-  height: 100%;
 }
 
-body {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-/* 내부 비트맵(CANVAS_W x CANVAS_H)을 뷰포트에 맞춰 확대. 종횡비는 main.js의
-   cnv.style()로도 덮어쓰지만 폴백/일관성을 위해 CSS에도 동일 비율(1600:540 = 80:27)을 둠 */
 canvas {
   display: block;
-  width: min(100vw, calc(100vh * 80 / 27));
-  height: min(100vh, calc(100vw * 27 / 80));
 }

@@ -158,7 +158,7 @@ function resetClearEffect() {
  * 추락 · 화면 밖 감지 시 FAIL 상태 전환
  */
 function failCondition() {
-  if (player.y > height + 100) {
+  if (player.y > GROUND_Y + 200) {
     setGameState(STATE.FAIL);
   }
 }

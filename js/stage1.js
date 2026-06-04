@@ -25,8 +25,11 @@ let stage1Grounds = [
  * Stage 1 시작 시 플레이어 · 상자 · 버튼 · 문 등 모든 오브젝트 초기 데이터 세팅
  */
 function initialStage1() {
+  // 창 크기에 맞춰 바닥 y 좌표를 재계산 — 모든 오브젝트는 이 값 기준으로 배치
+  GROUND_Y = computeGroundY();
+
   player.x = 80;
-  player.y = 300;
+  player.y = GROUND_Y - 300; // 바닥 위 300px 지점에서 낙하 시작
   player.vx = 0;
   player.vy = 0;
   player.shape = "square";
@@ -35,10 +38,18 @@ function initialStage1() {
   player.cooldownEndTime = 0;
   setShapeStats("square");
 
-  stage1Box = { x: 320, y: 380, w: 32, h: 32, vy: 0 };
-  stage1Button = { x: 520, y: 520, w: 100, h: 20, isPressed: false };
-  stage1Door = { x: 700, y: 380, w: 18, h: 100, isExist: true };
-  stage1ClearItem = { x: 1320, y: 430, w: 24, h: 32 };
+  stage1Grounds = [
+    { x: 0,   y: GROUND_Y, w: 520,          h: 300 },
+    { x: 620, y: GROUND_Y, w: CANVAS_W - 620, h: 300 },
+  ];
+  stage1Box      = { x: 320, y: GROUND_Y - 100, w: 32, h: 32, vy: 0 };
+  stage1Button   = { x: 520, y: GROUND_Y + 40,  w: 100, h: 20, isPressed: false };
+  stage1Door     = { x: 700, y: GROUND_Y - 100, w: 18, h: 100, isExist: true };
+  stage1ClearItem = { x: 1320, y: GROUND_Y - 50, w: 24, h: 32 };
+  // 문 위 천장 — HUD 하단(y=52)부터 문 상단(GROUND_Y-100)까지 막아 점프 우회 방지
+  stage1Walls = [
+    { x: 580, y: 52, w: 235, h: GROUND_Y - 152 },
+  ];
 
   stage1StartTime = millis();
   stage1ElapsedTime = 0;

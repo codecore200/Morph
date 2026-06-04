@@ -3,6 +3,9 @@
 let gameState = STATE.TITLE;
 let currentStage = 1;
 
+// draw()에서 계산한 균등 스케일·오프셋 — gameMX/gameMY가 참조
+let _gs = 1, _gox = 0, _goy = 0;
+
 let player = {
   x: 0,
   y: 0,
@@ -26,15 +29,7 @@ let player = {
  * 캔버스 생성, 리소스 로드, 전역 초기화
  */
 function setup() {
-  let cnv = createCanvas(CANVAS_W, CANVAS_H);
-  cnv.parent(document.body);
-  // 내부 비트맵 해상도(CANVAS_W x CANVAS_H)는 그대로, 화면 표시 크기만 뷰포트에 맞춰 확대.
-  // p5가 createCanvas에서 인라인 style.width/height를 박기 때문에 직접 덮어써야 적용됨.
-  // vw/vh 기반이라 창 크기가 바뀌면 브라우저가 자동 재계산.
-  // 종횡비를 CANVAS_W/CANVAS_H 기준으로 계산해 향후 캔버스 크기 변경에도 자동 적응
-  let r = CANVAS_W / CANVAS_H;
-  cnv.style("width", `min(100vw, calc(100vh * ${r}))`);
-  cnv.style("height", `min(100vh, calc(100vw / ${r}))`);
+  createCanvas(windowWidth, windowHeight);
   textFont("monospace");
   setShapeStats(player.shape);
   initTitleShapes();
@@ -46,6 +41,15 @@ function setup() {
  */
 function draw() {
   background(COLOR.bg);
+
+  // 가로를 CANVAS_W 기준으로 스케일 → 세로는 창 높이를 자동으로 꽉 채움
+  // GROUND_Y는 각 스테이지 초기화 때 computeGroundY()로 결정하므로 여기선 스케일만 계산
+  _gs  = width / CANVAS_W;
+  _gox = 0;
+  _goy = 0;
+
+  push();
+  scale(_gs);
 
   if (gameState === STATE.TITLE) {
     updateTitleShapes();
@@ -89,6 +93,8 @@ function draw() {
     headerUI();
     failScreen();
   }
+
+  pop();
 }
 
 /**
@@ -165,4 +171,23 @@ function mousePressed() {
 function toggleFullscreen() {
   let fs = fullscreen();
   fullscreen(!fs);
+}
+
+/**
+ * @function computeGroundY
+ * 현재 창 크기 기준으로 바닥 y 좌표를 계산 — 스케일 후 게임 세로 공간의 하단 60px 위
+ */
+function computeGroundY() {
+  return floor(windowHeight * CANVAS_W / windowWidth) - 60;
+}
+
+/**
+ * @function windowResized
+ * 브라우저 창 크기 변경 시 캔버스를 맞추고 현재 스테이지를 재초기화
+ */
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+  if (gameState === STATE.PLAYING) {
+    moveToStage(currentStage);
+  }
 }

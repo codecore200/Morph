@@ -83,8 +83,8 @@ function updatePlayerPhysics() {
     player.x = half;
     player.vx = 0;
   }
-  if (player.x > width - half) {
-    player.x = width - half;
+  if (player.x > CANVAS_W - half) {
+    player.x = CANVAS_W - half;
     player.vx = 0;
   }
 }

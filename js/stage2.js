@@ -36,20 +36,36 @@ let stage2HazardZone = { x: 820, y: 60, w: CANVAS_W - 130 - 820, h: 420 };
  * Stage 2 지형·플랫폼·경사 좌표 데이터 구성 (initialStage2가 호출)
  */
 function loadStage2Layout() {
-  // 경사면: 좌상단(160,380) → 우하단(380,480). 원만 표면을 따라 굴러내림
+  // 좌측 시작 플랫폼(절벽 위) / 우측 도착 플랫폼 — 모두 GROUND_Y 기준 상대 배치
+  stage2Grounds = [
+    { x: 0,   y: GROUND_Y - 100, w: 160,          h: 300 }, // 좌측 시작 플랫폼
+    { x: 540, y: GROUND_Y,       w: CANVAS_W - 540, h: 300 }, // 우측 도착 플랫폼
+  ];
+
+  // 경사면: 좌측 플랫폼 우단(GROUND_Y-100) → 우측 플랫폼 상단(GROUND_Y)
   stage2Slopes = [
-    { x: 160, y: 380, w: 220, h: 100 },
+    { x: 160, y: GROUND_Y - 100, w: 220, h: 100 },
   ];
 
-  // 풍선: 우측 플랫폼 위 통로에 배치 — 삼각형 변신해 터뜨려야 문에 접근
+  // 풍선: 우측 플랫폼 위 통로 — 삼각형으로 점프해 터뜨려야 센서가 등장
   stage2Balloons = [
-    { x: 600, y: 420, w: 26, h: 32, alive: true },
-    { x: 660, y: 420, w: 26, h: 32, alive: true },
+    { x: 600, y: GROUND_Y - 60, w: 26, h: 32, alive: true },
+    { x: 660, y: GROUND_Y - 60, w: 26, h: 32, alive: true },
   ];
 
-  stage2Door = { x: 720, y: 380, w: 18, h: 100, isExist: true };
-  stage2ShapeSensor = { x: 696, y: 472, w: 20, h: 8, activated: false, revealed: false, revealedAt: 0, targetY: 472 };
-  stage2ClearItem = { x: CANVAS_W - 70, y: 430, w: 24, h: 32 };
+  stage2Door        = { x: 720, y: GROUND_Y - 100, w: 18, h: 100, isExist: true };
+  stage2ShapeSensor = { x: 696, y: GROUND_Y - 8,   w: 20, h: 8,
+                        activated: false, revealed: false, revealedAt: 0,
+                        targetY: GROUND_Y - 8 };
+  stage2ClearItem   = { x: CANVAS_W - 70, y: GROUND_Y - 50, w: 24, h: 32 };
+
+  // 문 위 천장 벽 — HUD 하단(y=52)부터 문 상단(GROUND_Y-100)까지
+  stage2Walls = [
+    { x: 595, y: 52, w: 220, h: GROUND_Y - 152 },
+  ];
+
+  // 낙하 삼각형 위험 구간 — 문 통과 직후 ~ 클리어 직전, 세로는 바닥까지
+  stage2HazardZone = { x: 820, y: 60, w: CANVAS_W - 130 - 820, h: GROUND_Y - 60 };
 
   // 우측 통로의 낙하 삼각형 장애물 웨이브 셋업
   initStage2Hazards();
@@ -202,9 +218,11 @@ function handleShapeSensor(sensor, door) {
  * Stage 2 시작 시 플레이어 + 모든 오브젝트 초기화 (풍선·경사·문·클리어)
  */
 function initialStage2() {
-  // 좌측 시작 플랫폼 위에서 떨어지며 시작 (y=380이 플랫폼 윗면)
+  // 창 크기에 맞춰 바닥 y 좌표를 재계산
+  GROUND_Y = computeGroundY();
+
   player.x = 60;
-  player.y = 200;
+  player.y = GROUND_Y - 300; // 좌측 시작 플랫폼(GROUND_Y-100) 위에서 낙하 시작
   player.vx = 0;
   player.vy = 0;
   player.shape = "circle";

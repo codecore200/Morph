@@ -47,3 +47,11 @@ function getPlayerBounds() {
 function setGameState(newState) {
   gameState = newState;
 }
+
+/**
+ * @function gameMX / gameMY
+ * draw()의 scale 변환 때문에 실제 mouseX/mouseY는 windowWidth/windowHeight 기준.
+ * 게임 좌표계(CANVAS_W x CANVAS_H)로 역변환해 UI 충돌 판정에 사용
+ */
+function gameMX() { return mouseX / _gs; }
+function gameMY() { return mouseY / _gs; }

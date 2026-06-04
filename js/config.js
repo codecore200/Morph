@@ -7,7 +7,7 @@ const CANVAS_H = 540;
 // 물리 상수
 const GRAVITY = 0.6;
 const FRICTION_DECAY = 0.82;
-const GROUND_Y = 480;
+let GROUND_Y = 480; // 스테이지 초기화 시 창 높이에 맞춰 동적으로 재계산
 
 // 모핑 관련
 const MORPH_DURATION_MS = 300;

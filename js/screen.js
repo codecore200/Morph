@@ -2,7 +2,7 @@
 
 // 타이틀 화면 배경 도형
 let titleShapes = [];
-let titleStartBtn = { x: 0, y: 0, w: 180, h: 56 };
+let titleStartBtn = { x: 0, y: 0, w: 200, h: 58 };
 
 // 스테이지 선택 카드
 let stageButtons = [];
@@ -22,9 +22,9 @@ function initTitleShapes() {
   for (let i = 0; i < 8; i++) {
     titleShapes.push({
       shape: shapes[i % 3],
-      x: random(width),
-      y: random(height),
-      size: random(30, 60),
+      x: random(CANVAS_W),
+      y: random(CANVAS_H),
+      size: random(40, 80),
       vx: random(-0.4, 0.4),
       vy: random(-0.3, 0.3),
       rot: random(TWO_PI),
@@ -42,10 +42,10 @@ function updateTitleShapes() {
     s.x += s.vx;
     s.y += s.vy;
     s.rot += s.vrot;
-    if (s.x < -50) s.x = width + 50;
-    if (s.x > width + 50) s.x = -50;
-    if (s.y < -50) s.y = height + 50;
-    if (s.y > height + 50) s.y = -50;
+    if (s.x < -50) s.x = CANVAS_W + 50;
+    if (s.x > CANVAS_W + 50) s.x = -50;
+    if (s.y < -50) s.y = CANVAS_H + 50;
+    if (s.y > CANVAS_H + 50) s.y = -50;
   }
 }
 
@@ -68,47 +68,48 @@ function drawTitleScreen() {
     pop();
   }
 
+  let cx = CANVAS_W / 2;
+  let cy = CANVAS_H / 2;
+
   // 타이틀
   noStroke();
   fill(COLOR.uiText);
   textAlign(CENTER, CENTER);
   textStyle(BOLD);
-  textSize(76);
-  text("MORPH", width / 2, height / 2 - 90);
+  textSize(88);
+  text("MORPH", cx, cy - 110);
 
-  // 세 도형 라인
-  let cx = width / 2;
-  let cy = height / 2 - 10;
-  let gap = 70;
+  // 세 도형 라인 — 1600px 너비에서 간격을 넓혀 균형 있게 배치
+  let gap = 90;
   push();
-  translate(cx - gap, cy);
+  translate(cx - gap, cy - 20);
   noStroke();
   fill(COLOR.circle);
-  drawShapeOutline("circle", 36);
+  drawShapeOutline("circle", 44);
   pop();
   push();
-  translate(cx, cy);
+  translate(cx, cy - 20);
   noStroke();
   fill(COLOR.square);
-  drawShapeOutline("square", 36);
+  drawShapeOutline("square", 44);
   pop();
   push();
-  translate(cx + gap, cy);
+  translate(cx + gap, cy - 20);
   noStroke();
   fill(COLOR.triangle);
-  drawShapeOutline("triangle", 36);
+  drawShapeOutline("triangle", 44);
   pop();
 
-  // 부제 (게임 주제)
+  // 부제
   fill(COLOR.uiText);
   textStyle(NORMAL);
-  textSize(14);
-  text("형태 변환 퍼즐 플랫포머", width / 2, height / 2 + 40);
+  textSize(15);
+  text("형태 변환 퍼즐 플랫포머", cx, cy + 36);
 
   // Start 버튼
-  titleStartBtn.x = width / 2 - titleStartBtn.w / 2;
-  titleStartBtn.y = height / 2 + 70;
-  let hover = isPointInRect(mouseX, mouseY, titleStartBtn);
+  titleStartBtn.x = cx - titleStartBtn.w / 2;
+  titleStartBtn.y = cy + 68;
+  let hover = isPointInRect(gameMX(), gameMY(), titleStartBtn);
   fill(hover ? COLOR.uiBtnHover : COLOR.uiBtn);
   stroke(COLOR.clear);
   strokeWeight(2);
@@ -116,28 +117,28 @@ function drawTitleScreen() {
   noStroke();
   fill(COLOR.uiText);
   textStyle(BOLD);
-  textSize(18);
+  textSize(20);
   textAlign(CENTER, CENTER);
-  text("START", width / 2, titleStartBtn.y + titleStartBtn.h / 2);
+  text("START", cx, titleStartBtn.y + titleStartBtn.h / 2);
 
-  // 사용법 (3줄)
+  // 사용법
   textStyle(NORMAL);
   textSize(12);
   fill(COLOR.uiText);
-  let helpY = titleStartBtn.y + titleStartBtn.h + 26;
-  text("← / → : 이동    SPACE / ↑ : 점프    F : 풀스크린    M : 음소거", width / 2, helpY);
+  let helpY = titleStartBtn.y + titleStartBtn.h + 24;
+  text("← / → : 이동    SPACE / ↑ : 점프    F : 풀스크린    M : 음소거", cx, helpY);
   fill(COLOR.circle);
-  text("Q : 원", width / 2 - 110, helpY + 18);
+  text("Q : 원", cx - 120, helpY + 18);
   fill(COLOR.square);
-  text("W : 사각형", width / 2, helpY + 18);
+  text("W : 사각형", cx, helpY + 18);
   fill(COLOR.triangle);
-  text("E : 삼각형", width / 2 + 110, helpY + 18);
+  text("E : 삼각형", cx + 120, helpY + 18);
 
   // 제작자
   textStyle(NORMAL);
   textSize(11);
   fill(COLOR.uiBtnHover);
-  text("Made by 신동빈 · 장현우 · 황세혁    |    14조", width / 2, height - 18);
+  text("Made by 신동빈 · 장현우 · 황세혁    |    14조", cx, CANVAS_H - 16);
 }
 
 /**
@@ -145,7 +146,7 @@ function drawTitleScreen() {
  * Start 버튼 클릭 영역 판정 → STAGE_SELECT 전환
  */
 function titleScreenClick() {
-  if (isPointInRect(mouseX, mouseY, titleStartBtn)) {
+  if (isPointInRect(gameMX(), gameMY(), titleStartBtn)) {
     setGameState(STATE.STAGE_SELECT);
   }
 }
@@ -155,18 +156,20 @@ function titleScreenClick() {
  * 스테이지 선택 화면 렌더링
  */
 function drawStageSelect() {
+  let cx = CANVAS_W / 2;
+
   // 타이틀
   noStroke();
   fill(COLOR.uiText);
   textAlign(CENTER, CENTER);
   textStyle(BOLD);
   textSize(40);
-  text("STAGE SELECT", width / 2, 90);
+  text("STAGE SELECT", cx, 90);
 
   fill(COLOR.uiBtnHover);
   textSize(14);
   textStyle(NORMAL);
-  text("플레이할 스테이지를 선택하세요", width / 2, 130);
+  text("플레이할 스테이지를 선택하세요", cx, 130);
 
   // 스테이지 데이터
   let stageData = [
@@ -186,53 +189,53 @@ function drawStageSelect() {
 
   stageButtons = [];
   let cardW = 220;
-  let cardH = 200;
-  let gap = 50;
+  let cardH = 240;
+  let gap = 60;
   let totalW = stageData.length * cardW + (stageData.length - 1) * gap;
-  let startX = width / 2 - totalW / 2;
+  let startX = cx - totalW / 2;
+  let cardY = (CANVAS_H - cardH) / 2 + 10;
 
   for (let i = 0; i < stageData.length; i++) {
     let s = stageData[i];
     let x = startX + i * (cardW + gap);
-    let y = 200;
-    let rect_ = { x: x, y: y, w: cardW, h: cardH, stageNum: s.num };
+    let rect_ = { x: x, y: cardY, w: cardW, h: cardH, stageNum: s.num };
     stageButtons.push(rect_);
 
-    let hover = isPointInRect(mouseX, mouseY, rect_);
+    let hover = isPointInRect(gameMX(), gameMY(), rect_);
 
     // 카드
     fill(hover ? COLOR.uiBtnHover : COLOR.uiBtn);
     stroke(s.color);
     strokeWeight(hover ? 3 : 1.5);
-    rect(x, y, cardW, cardH, 18);
+    rect(x, cardY, cardW, cardH, 18);
 
     // 번호
     noStroke();
     fill(s.color);
-    textSize(48);
+    textSize(52);
     textStyle(BOLD);
     textAlign(CENTER, CENTER);
-    text(s.num, x + cardW / 2, y + 60);
+    text(s.num, x + cardW / 2, cardY + 70);
 
     // 제목
     fill(COLOR.uiText);
     textSize(20);
-    text(s.title, x + cardW / 2, y + 115);
+    text(s.title, x + cardW / 2, cardY + 130);
 
     // 설명
     fill(COLOR.uiBtnHover);
     textSize(13);
     textStyle(NORMAL);
-    text(s.desc, x + cardW / 2, y + 150);
+    text(s.desc, x + cardW / 2, cardY + 170);
 
     // 진입 안내
     fill(s.color);
     textSize(12);
-    text("CLICK TO START", x + cardW / 2, y + 180);
+    text("CLICK TO START", x + cardW / 2, cardY + 215);
   }
 
   // 좌상단: 타이틀로 돌아가기 버튼
-  let hoverBack = isPointInRect(mouseX, mouseY, stageSelectBackBtn);
+  let hoverBack = isPointInRect(gameMX(), gameMY(), stageSelectBackBtn);
   fill(hoverBack ? COLOR.uiBtnHover : COLOR.uiBtn);
   stroke(COLOR.uiText);
   strokeWeight(1.5);
@@ -260,12 +263,12 @@ function drawStageSelect() {
  * 스테이지 선택 화면에서 카드 / 타이틀 복귀 버튼 클릭 판정
  */
 function stageSelectClick() {
-  if (isPointInRect(mouseX, mouseY, stageSelectBackBtn)) {
+  if (isPointInRect(gameMX(), gameMY(), stageSelectBackBtn)) {
     setGameState(STATE.TITLE);
     return;
   }
   for (let b of stageButtons) {
-    if (isPointInRect(mouseX, mouseY, b)) {
+    if (isPointInRect(gameMX(), gameMY(), b)) {
       moveToStage(b.stageNum);
       return;
     }
@@ -293,16 +296,19 @@ function moveToStage(stageNumber) {
  * CLEAR 결과 UI (점수 · 별점 · RESTART/NEXT/QUIT 버튼)
  */
 function showClearWindow() {
+  let cx = CANVAS_W / 2;
+  let cy = CANVAS_H / 2;
+
   // 어두운 오버레이
   noStroke();
   fill(26, 27, 46, 200);
-  rect(0, 0, width, height);
+  rect(0, 0, CANVAS_W, CANVAS_H);
 
   // 패널
   let pw = 460;
   let ph = 280;
-  let px = width / 2 - pw / 2;
-  let py = height / 2 - ph / 2;
+  let px = cx - pw / 2;
+  let py = cy - ph / 2;
   fill(COLOR.bg);
   stroke(COLOR.clear);
   strokeWeight(3);
@@ -314,7 +320,7 @@ function showClearWindow() {
   textAlign(CENTER, CENTER);
   textStyle(BOLD);
   textSize(40);
-  text("STAGE CLEAR!", width / 2, py + 50);
+  text("STAGE CLEAR!", cx, py + 50);
 
   // 시간 표시
   fill(COLOR.uiText);
@@ -323,7 +329,7 @@ function showClearWindow() {
   let elapsed = getCurrentElapsed();
   let mm = nf(floor(elapsed / 60), 2);
   let ss = nf(elapsed % 60, 2);
-  text("TIME  " + mm + ":" + ss, width / 2, py + 95);
+  text("TIME  " + mm + ":" + ss, cx, py + 95);
 
   // 별
   let stars = getCurrentStars();
@@ -332,15 +338,15 @@ function showClearWindow() {
   let starsText = "";
   for (let i = 0; i < stars; i++) starsText += "★ ";
   for (let i = stars; i < 3; i++) starsText += "☆ ";
-  text(starsText.trim(), width / 2, py + 145);
+  text(starsText.trim(), cx, py + 145);
 
   // 버튼
   let bw = 110;
   let bh = 42;
   let by = py + ph - 60;
-  clearButtons.restart = { x: width / 2 - bw * 1.6, y: by, w: bw, h: bh };
-  clearButtons.next = { x: width / 2 - bw / 2, y: by, w: bw, h: bh };
-  clearButtons.quit = { x: width / 2 + bw * 0.6, y: by, w: bw, h: bh };
+  clearButtons.restart = { x: cx - bw * 1.6, y: by, w: bw, h: bh };
+  clearButtons.next    = { x: cx - bw / 2,   y: by, w: bw, h: bh };
+  clearButtons.quit    = { x: cx + bw * 0.6,  y: by, w: bw, h: bh };
 
   drawScreenButton(clearButtons.restart, "RESTART", COLOR.square);
   let isLast = currentStage >= LAST_STAGE;
@@ -357,7 +363,7 @@ function showClearWindow() {
  * 공통 화면 버튼 그리기
  */
 function drawScreenButton(btn, label, accent) {
-  let hover = isPointInRect(mouseX, mouseY, btn);
+  let hover = isPointInRect(gameMX(), gameMY(), btn);
   noStroke();
   fill(hover ? COLOR.uiBtnHover : COLOR.uiBtn);
   stroke(accent);
@@ -376,11 +382,11 @@ function drawScreenButton(btn, label, accent) {
  * 클리어 화면 버튼 클릭 라우팅
  */
 function clearScreenClick() {
-  if (clearButtons.restart && isPointInRect(mouseX, mouseY, clearButtons.restart)) {
+  if (clearButtons.restart && isPointInRect(gameMX(), gameMY(), clearButtons.restart)) {
     onRestartButtonClick();
-  } else if (clearButtons.next && isPointInRect(mouseX, mouseY, clearButtons.next)) {
+  } else if (clearButtons.next && isPointInRect(gameMX(), gameMY(), clearButtons.next)) {
     onNextStageButtonClick();
-  } else if (clearButtons.quit && isPointInRect(mouseX, mouseY, clearButtons.quit)) {
+  } else if (clearButtons.quit && isPointInRect(gameMX(), gameMY(), clearButtons.quit)) {
     onQuitButtonClick();
   }
 }
@@ -418,16 +424,19 @@ function onQuitButtonClick() {
  * FAIL 팝업 + RESTART/QUIT 버튼 렌더링
  */
 function failScreen() {
+  let cx = CANVAS_W / 2;
+  let cy = CANVAS_H / 2;
+
   // 오버레이
   noStroke();
   fill(26, 27, 46, 200);
-  rect(0, 0, width, height);
+  rect(0, 0, CANVAS_W, CANVAS_H);
 
   // 패널
   let pw = 420;
   let ph = 220;
-  let px = width / 2 - pw / 2;
-  let py = height / 2 - ph / 2;
+  let px = cx - pw / 2;
+  let py = cy - ph / 2;
   fill(COLOR.bg);
   stroke(COLOR.spike);
   strokeWeight(3);
@@ -439,20 +448,20 @@ function failScreen() {
   textAlign(CENTER, CENTER);
   textStyle(BOLD);
   textSize(44);
-  text("FAIL", width / 2, py + 60);
+  text("FAIL", cx, py + 60);
 
   // 안내
   fill(COLOR.uiText);
   textStyle(NORMAL);
   textSize(14);
-  text("다시 도전해 보세요!", width / 2, py + 110);
+  text("다시 도전해 보세요!", cx, py + 110);
 
   // 버튼
   let bw = 130;
   let bh = 44;
   let by = py + ph - 65;
-  failButtons.restart = { x: width / 2 - bw - 10, y: by, w: bw, h: bh };
-  failButtons.quit = { x: width / 2 + 10, y: by, w: bw, h: bh };
+  failButtons.restart = { x: cx - bw - 10, y: by, w: bw, h: bh };
+  failButtons.quit    = { x: cx + 10,       y: by, w: bw, h: bh };
   drawScreenButton(failButtons.restart, "RESTART", COLOR.square);
   drawScreenButton(failButtons.quit, "QUIT", COLOR.triangle);
 }
@@ -462,9 +471,9 @@ function failScreen() {
  * FAIL 화면 RESTART/QUIT 클릭 판정
  */
 function failScreenClick() {
-  if (failButtons.restart && isPointInRect(mouseX, mouseY, failButtons.restart)) {
+  if (failButtons.restart && isPointInRect(gameMX(), gameMY(), failButtons.restart)) {
     onRestartButtonClick();
-  } else if (failButtons.quit && isPointInRect(mouseX, mouseY, failButtons.quit)) {
+  } else if (failButtons.quit && isPointInRect(gameMX(), gameMY(), failButtons.quit)) {
     onQuitButtonClick();
   }
 }

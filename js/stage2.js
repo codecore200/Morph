@@ -504,12 +504,12 @@ function drawStage2() {
 
   // 힌트 텍스트
   fill(COLOR.uiText);
-  textAlign(LEFT, BOTTOM);
+  textAlign(LEFT, TOP);
   textSize(12);
   textStyle(NORMAL);
   text(
     "Hint: 원(Q)으로 경사 굴러 절벽 넘기 → 삼각형(E)으로 풍선 모두 터뜨리기 → 패널이 솟아오르면 사각형(W)으로 밟아 문 열기 → 원(Q)으로 삼각형 비 피해 골인",
     16,
-    GROUND_Y - 6
+    58
   );
 }

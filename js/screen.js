@@ -77,24 +77,24 @@ function drawTitleScreen() {
   textAlign(CENTER, CENTER);
   textStyle(BOLD);
   textSize(88);
-  text("MORPH", cx, cy - 110);
+  text("MORPH", cx, cy);
 
   // 세 도형 라인 — 1600px 너비에서 간격을 넓혀 균형 있게 배치
   let gap = 90;
   push();
-  translate(cx - gap, cy - 20);
+  translate(cx - gap, cy + 75);
   noStroke();
   fill(COLOR.circle);
   drawShapeOutline("circle", 44);
   pop();
   push();
-  translate(cx, cy - 20);
+  translate(cx, cy + 75);
   noStroke();
   fill(COLOR.square);
   drawShapeOutline("square", 44);
   pop();
   push();
-  translate(cx + gap, cy - 20);
+  translate(cx + gap, cy + 75);
   noStroke();
   fill(COLOR.triangle);
   drawShapeOutline("triangle", 44);
@@ -104,11 +104,11 @@ function drawTitleScreen() {
   fill(COLOR.uiText);
   textStyle(NORMAL);
   textSize(15);
-  text("형태 변환 퍼즐 플랫포머", cx, cy + 36);
+  text("형태 변환 퍼즐 플랫포머", cx, cy + 120);
 
   // Start 버튼
   titleStartBtn.x = cx - titleStartBtn.w / 2;
-  titleStartBtn.y = cy + 68;
+  titleStartBtn.y = cy + 148;
   let hover = isPointInRect(gameMX(), gameMY(), titleStartBtn);
   fill(hover ? COLOR.uiBtnHover : COLOR.uiBtn);
   stroke(COLOR.clear);
@@ -138,7 +138,8 @@ function drawTitleScreen() {
   textStyle(NORMAL);
   textSize(11);
   fill(COLOR.uiBtnHover);
-  text("Made by 신동빈 · 장현우 · 황세혁    |    14조", cx, CANVAS_H - 16);
+  textAlign(CENTER, BOTTOM);
+  text("Made by 신동빈 · 장현우 · 황세혁    |    14조", cx, CANVAS_H + 50);
 }
 
 /**
@@ -175,13 +176,13 @@ function drawStageSelect() {
   let stageData = [
     {
       num: 1,
-      title: "기초 훈련",
+      title: "Stage 1",
       desc: "상자와 버튼 퍼즐",
       color: COLOR.square,
     },
     {
       num: 2,
-      title: "하늘 정복자",
+      title: "Stage 2",
       desc: "풍선과 경사 퍼즐",
       color: COLOR.triangle,
     },
@@ -297,12 +298,12 @@ function moveToStage(stageNumber) {
  */
 function showClearWindow() {
   let cx = CANVAS_W / 2;
-  let cy = CANVAS_H / 2;
+  let cy = height / _gs / 2;
 
   // 어두운 오버레이
   noStroke();
   fill(26, 27, 46, 200);
-  rect(0, 0, CANVAS_W, CANVAS_H);
+  rect(0, 0, CANVAS_W, height / _gs);
 
   // 패널
   let pw = 460;
@@ -425,12 +426,12 @@ function onQuitButtonClick() {
  */
 function failScreen() {
   let cx = CANVAS_W / 2;
-  let cy = CANVAS_H / 2;
+  let cy = height / _gs / 2;
 
   // 오버레이
   noStroke();
   fill(26, 27, 46, 200);
-  rect(0, 0, CANVAS_W, CANVAS_H);
+  rect(0, 0, CANVAS_W, height / _gs);
 
   // 패널
   let pw = 420;

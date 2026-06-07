@@ -42,7 +42,8 @@ function rollDownSlope(slopeAngle) {
 
 /**
  * @function handleSlope
- * 원이면 표면 따라가며 가속, 그 외 도형이면 솔리드 박스로 막음
+ * 원이면 표면 따라가며 가속, 그 외 도형이면 경사 표면 Y에 직접 착지
+ * (blockOnSolid는 경사를 직사각형으로 취급해 표면 위에서 붕 뜨는 버그 발생)
  */
 function handleSlope(slope) {
   if (player.shape === "circle") {
@@ -54,7 +55,19 @@ function handleSlope(slope) {
       rollDownSlope(getSlopeAngle(slope));
     }
   } else {
-    blockOnSolid(slope);
+    let half = player.size / 2;
+    if (player.x >= slope.x && player.x <= slope.x + slope.w) {
+      // 경사면 X 범위 안: 표면 Y를 직접 계산해 착지
+      let surfaceY = getSlopeSurfaceY(slope, player.x);
+      if (player.y + half >= surfaceY - 2) {
+        player.y = surfaceY - half;
+        player.vy = 0;
+        player.onGround = true;
+      }
+    } else {
+      // 경사면 X 범위 밖(왼쪽 수직벽 등): 솔리드 박스로 막음
+      blockOnSolid(slope);
+    }
   }
 }
 
@@ -132,7 +145,14 @@ function blockOnSolid(solid) {
     solid.y + solid.h - pb.y
   );
 
-  if (overlapX < overlapY) {
+  // 측벽에 붙어 점프 상승 중(vy < 0)일 때, 솔리드 상단 모서리를 막 지나치는 순간
+  // overlapY가 극소화되어 측면 충돌이 '착지'로 오판 → vy = 0 으로 점프가 강제
+  // 중단되는 버그 방지. 상승 중이고 플레이어 중심이 솔리드 상단보다 위면 수평 분리.
+  // (stage1.js의 boxCollision과 동일 패턴)
+  let resolveAsHorizontal =
+    overlapX < overlapY || (player.vy < 0 && player.y < solid.y);
+
+  if (resolveAsHorizontal) {
     // 수평 분리
     if (player.x < solid.x + solid.w / 2) {
       player.x -= overlapX;

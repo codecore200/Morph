@@ -258,10 +258,10 @@ function drawStage1() {
 
   // 힌트 텍스트
   fill(COLOR.uiText);
-  textAlign(LEFT, BOTTOM);
+  textAlign(LEFT, TOP);
   textSize(12);
   textStyle(NORMAL);
-  text("Hint: 사각형으로 상자를 밀어 구덩이에 떨어뜨려 버튼을 누르세요", 16, GROUND_Y - 6);
+  text("Hint: 사각형으로 상자를 밀어 구덩이에 떨어뜨려 버튼을 누르세요", 16, 58);
 }
 
 /**

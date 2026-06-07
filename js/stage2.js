@@ -1,4 +1,4 @@
-// Stage 2: 풍선 · 경사면 · 문 퍼즐
+// Stage 2: 경사 · 풍선 · 문 퍼즐 + 문 이후 입체 클라이맥스(점프 패드 · 무너지는 발판 · 이동 발판)
 
 let stage2StartTime = 0;
 let stage2ElapsedTime = 0;
@@ -16,7 +16,7 @@ let stage2Grounds = [
 let stage2Door = { x: 720, y: 380, w: 18, h: 100, isExist: true };
 // 사각형 인식 패널 — 풍선을 모두 터뜨려야 바닥에서 솟아오름. 그 뒤 사각형으로 밟으면 문이 열림
 let stage2ShapeSensor = { x: 696, y: 472, w: 20, h: 8, activated: false, revealed: false, revealedAt: 0, targetY: 472 };
-// 클리어 아이템은 확장된 우측 영역 끝 근처에 배치 (낙하 삼각형 구간 너머)
+// 클리어 아이템은 확장된 우측 영역 끝 근처에 배치 (입체 클라이맥스 너머)
 let stage2ClearItem = { x: CANVAS_W - 70, y: 430, w: 24, h: 32 };
 // 문 위 천장 벽 (점프 우회 방지). 우측 플랫폼 위에 배치
 let stage2Walls = [
@@ -27,48 +27,80 @@ let stage2Walls = [
 let stage2Hazards = [];
 let hazardWaveIndex = 0; // 다음에 떨어질 삼각형 인덱스
 let hazardWaveTimer = 0; // 낙하 간격 카운터
-// 삼각형이 떨어지는 위험 구간 — 문 통과 직후 ~ 클리어 직전. 이 영역 밖은 안전.
-// 바닥(y+h)은 우측 플랫폼 윗면(480)과 일치시켜 삼각형이 거기 닿으면 깨지게 함
-let stage2HazardZone = { x: 820, y: 60, w: CANVAS_W - 130 - 820, h: 420 };
+// 삼각형이 떨어지는 위험 구간 — 문 통과 직후 구간. 이 영역 밖은 안전.
+let stage2HazardZone = { x: 820, y: 60, w: 240, h: 420 };
+
+// 문 이후 입체 클라이맥스 기믹들
+let stage2JumpPads = [];     // 스프링 점프 패드 (가벼운 도형일수록 높이 튕김)
+let stage2CrumblePlats = []; // 무너지는 발판 (밟으면 붕괴 후 복구)
+let stage2MovePlats = [];    // 좌우 왕복 이동 발판
+let crumbleDebris = [];      // 발판 붕괴 시 파편 이펙트 큐
+
+// 배경 시차(parallax) 도형 — 분위기용으로 천천히 떠다니는 큰 도형 실루엣
+let stage2BgShapes = [];
 
 /**
  * @function loadStage2Layout
  * Stage 2 지형·플랫폼·경사 좌표 데이터 구성 (initialStage2가 호출)
  */
 function loadStage2Layout() {
-  // 좌측 시작 플랫폼(절벽 위) / 우측 도착 플랫폼 — 모두 GROUND_Y 기준 상대 배치
+  let GY = GROUND_Y;
+
+  // 좌측 시작 플랫폼(절벽 위) / 우측 바닥은 갭으로 분할 — 모두 GROUND_Y 기준 상대 배치.
+  // 동선: RB1(540~1160) ─갭A─▶ 무너지는 발판(1330~1410) ─갭─▶ MB 디딤돌(1435~1485)
+  //        ─갭B(이동 발판)─▶ RB3(1560~) 골인. 각 갭 사이에 고정 발판을 둬 운빨 없이 통과
   stage2Grounds = [
-    { x: 0,   y: GROUND_Y - 100, w: 160,          h: 300 }, // 좌측 시작 플랫폼
-    { x: 540, y: GROUND_Y,       w: CANVAS_W - 540, h: 300 }, // 우측 도착 플랫폼
+    { x: 0,    y: GY - 100, w: 160,            h: 300 }, // 좌측 시작 플랫폼
+    { x: 540,  y: GY,       w: 620,            h: 300 }, // RB1 (540~1160)
+    { x: 1435, y: GY,       w: 50,             h: 300 }, // MB 고정 디딤돌 (1435~1485)
+    { x: 1560, y: GY,       w: CANVAS_W - 1560, h: 300 }, // RB3 (1560~) 골인 발판
   ];
 
   // 경사면: 좌측 플랫폼 우단(GROUND_Y-100) → 우측 플랫폼 상단(GROUND_Y)
   stage2Slopes = [
-    { x: 160, y: GROUND_Y - 100, w: 220, h: 100 },
+    { x: 160, y: GY - 100, w: 220, h: 100 },
   ];
 
-  // 풍선: 우측 플랫폼 위 통로 — 삼각형으로 점프해 터뜨려야 센서가 등장
+  // 풍선 3개: 우측 플랫폼 위 통로 — 삼각형으로 점프해 모두 터뜨려야 센서가 등장.
+  // 가운데를 높게 배치해 정밀 점프를 요구(도전적)
   stage2Balloons = [
-    { x: 600, y: GROUND_Y - 60, w: 26, h: 32, alive: true },
-    { x: 660, y: GROUND_Y - 60, w: 26, h: 32, alive: true },
+    { x: 604, y: GY - 58, w: 26, h: 32, alive: true },
+    { x: 652, y: GY - 86, w: 26, h: 32, alive: true },
+    { x: 700, y: GY - 58, w: 26, h: 32, alive: true },
   ];
 
-  stage2Door        = { x: 720, y: GROUND_Y - 100, w: 18, h: 100, isExist: true };
-  stage2ShapeSensor = { x: 696, y: GROUND_Y - 8,   w: 20, h: 8,
+  stage2Door        = { x: 720, y: GY - 100, w: 18, h: 100, isExist: true };
+  stage2ShapeSensor = { x: 696, y: GY - 8,   w: 20, h: 8,
                         activated: false, revealed: false, revealedAt: 0,
-                        targetY: GROUND_Y - 8 };
-  stage2ClearItem   = { x: CANVAS_W - 70, y: GROUND_Y - 50, w: 24, h: 32 };
+                        targetY: GY - 8 };
+  stage2ClearItem   = { x: 1572, y: GY - 50, w: 24, h: 32 };
 
   // 문 위 천장 벽 — HUD 하단(y=52)부터 문 상단(GROUND_Y-100)까지
   stage2Walls = [
-    { x: 595, y: 52, w: 220, h: GROUND_Y - 152 },
+    { x: 595, y: 52, w: 220, h: GY - 152 },
   ];
 
-  // 낙하 삼각형 위험 구간 — 문 통과 직후 ~ 클리어 직전, 세로는 바닥까지
-  stage2HazardZone = { x: 820, y: 60, w: CANVAS_W - 130 - 820, h: GROUND_Y - 60 };
+  // 낙하 삼각형 위험 구간 — 천장벽 너머(820) ~ 점프 패드 진입 여유(1080). RB1 위, 세로는 바닥까지
+  stage2HazardZone = { x: 820, y: 60, w: 260, h: GY - 60 };
+
+  // --- 입체 클라이맥스 기믹 배치 ---
+  // 점프 패드: RB1 끝부분 위(1095~1155). 비를 뚫고 달려와 원으로 밟으면 갭A를 넘어 무너지는 발판에 착지
+  stage2JumpPads = [
+    { x: 1095, y: GY - 14, w: 60, h: 14, firedAt: 0 },
+  ];
+  // 무너지는 발판: 갭A(1160~1330) 너머(1330~1410). 밟으면 흔들리다 붕괴 — 빠르게 MB로 점프
+  stage2CrumblePlats = [
+    { x: 1330, y: GY, w: 80, h: 18, state: "solid", shakeAt: 0, goneAt: 0 },
+  ];
+  // 좌우 왕복 이동 발판: 갭B(1485~1560)를 메우며 왕복(1495~1545). MB↔RB3 사이라 양쪽 고정 → 운빨 없음
+  stage2MovePlats = [
+    { baseX: 1495, x: 1495, y: GY - 6, w: 50, h: 16, range: 15, phase: 0 },
+  ];
 
   // 우측 통로의 낙하 삼각형 장애물 웨이브 셋업
   initStage2Hazards();
+  // 배경 시차 도형 셋업
+  initStage2BgShapes();
 }
 
 /**
@@ -186,6 +218,338 @@ function drawStage2Hazards() {
   pop();
 }
 
+/* ============================================================
+ * 배경 시차 도형 (분위기 연출)
+ * ========================================================== */
+
+/**
+ * @function initStage2BgShapes
+ * 화면 뒤에서 천천히 떠다닐 큰 도형 실루엣 9개 생성
+ */
+function initStage2BgShapes() {
+  stage2BgShapes = [];
+  let shapes = ["circle", "square", "triangle"];
+  for (let i = 0; i < 9; i++) {
+    stage2BgShapes.push({
+      shape: shapes[i % 3],
+      x: random(CANVAS_W),
+      y: random(70, GROUND_Y - 40),
+      size: random(46, 104),
+      vx: random(0.12, 0.4) * (random() < 0.5 ? -1 : 1),
+      rot: random(TWO_PI),
+      vrot: random(-0.006, 0.006),
+      depth: random(0.04, 0.1), // 멀수록 옅고 느림
+    });
+  }
+}
+
+/**
+ * @function updateStage2BgShapes
+ * 배경 도형 수평 이동 · 회전, 화면 밖으로 나가면 반대편에서 재등장
+ */
+function updateStage2BgShapes() {
+  for (let s of stage2BgShapes) {
+    s.x += s.vx;
+    s.rot += s.vrot;
+    if (s.x < -80) s.x = CANVAS_W + 80;
+    if (s.x > CANVAS_W + 80) s.x = -80;
+  }
+}
+
+/**
+ * @function drawStage2Background
+ * 세로 그라데이션 + 시차 도형 실루엣으로 깊이감 있는 배경 연출
+ */
+function drawStage2Background() {
+  let ctx = drawingContext;
+  let bottom = GROUND_Y + 200;
+
+  // 세로 그라데이션 (위는 어둡게, 지평선 부근은 살짝 밝게)
+  let g = ctx.createLinearGradient(0, 0, 0, bottom);
+  g.addColorStop(0, COLOR.bg);
+  g.addColorStop(0.72, COLOR.bgFar);
+  g.addColorStop(1, COLOR.terrain);
+  push();
+  noStroke();
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, CANVAS_W, bottom);
+  pop();
+
+  // 시차 도형 실루엣
+  for (let s of stage2BgShapes) {
+    push();
+    translate(s.x, s.y);
+    rotate(s.rot);
+    noFill();
+    stroke(COLOR[s.shape]);
+    strokeWeight(2);
+    ctx.globalAlpha = s.depth;
+    drawShapeOutline(s.shape, s.size);
+    ctx.globalAlpha = 1;
+    pop();
+  }
+}
+
+/* ============================================================
+ * 점프 패드 (스프링) — 가벼운 도형일수록 높이 튕김
+ * ========================================================== */
+
+/**
+ * @function updateJumpPad
+ * 평소엔 솔리드 발판. 위에서 밟으면 도형 질량에 반비례해 강하게 위로 튕김.
+ * (원 0.7 → 가장 높이, 사각형 1.6 → 낮게) — 넓은 갭은 원으로만 통과 가능
+ */
+function updateJumpPad(pad) {
+  blockOnSolid(pad);
+
+  let pb = getPlayerBounds();
+  let feetY = pb.y + pb.h;
+  let onTop =
+    player.onGround &&
+    feetY >= pad.y - 3 &&
+    feetY <= pad.y + pad.h &&
+    pb.x + pb.w > pad.x &&
+    pb.x < pad.x + pad.w;
+
+  if (onTop) {
+    let boost = JUMP_PAD_POWER / max(JUMP_PAD_MIN_MASS, player.mass);
+    player.vy = -boost;
+    player.onGround = false;
+    pad.firedAt = millis();
+    playBGM("pop"); // 튕기는 순간 효과음(기존 사운드 재사용)
+  }
+}
+
+/**
+ * @function drawJumpPad
+ * 스프링 패드 본체 + 발동 시 확장 링 + 상단 화살표
+ */
+function drawJumpPad(pad) {
+  push();
+  // 발동 링 (튕긴 직후 0.3초)
+  if (pad.firedAt && millis() - pad.firedAt < 300) {
+    let t = (millis() - pad.firedAt) / 300;
+    noFill();
+    stroke(COLOR.circle);
+    strokeWeight(2 * (1 - t) + 0.5);
+    drawingContext.globalAlpha = 1 - t;
+    ellipse(pad.x + pad.w / 2, pad.y, 30 + t * 60);
+    drawingContext.globalAlpha = 1;
+  }
+
+  // 패드 본체 — 살짝 눌렸다 튀는 느낌
+  let press = pad.firedAt && millis() - pad.firedAt < 120 ? 3 : 0;
+  noStroke();
+  fill(COLOR.bgFar);
+  rect(pad.x, pad.y + pad.h - 4, pad.w, 6, 2); // 받침
+  fill(COLOR.circle);
+  rect(pad.x + 4, pad.y + press, pad.w - 8, pad.h - 4, 4); // 스프링 상판
+
+  // 위 방향 화살표(이중)
+  fill(COLOR.bg);
+  textAlign(CENTER, CENTER);
+  textStyle(BOLD);
+  textSize(13);
+  text("▲", pad.x + pad.w / 2, pad.y + pad.h / 2 + press);
+  pop();
+}
+
+/* ============================================================
+ * 무너지는 발판 — 밟으면 흔들리다 붕괴, 잠시 후 복구
+ * ========================================================== */
+
+/**
+ * @function isStandingOn
+ * 플레이어가 해당 발판 윗면에 막 올라서 있는지 (blockOnSolid 직후 호출)
+ */
+function isStandingOn(plat) {
+  let pb = getPlayerBounds();
+  return (
+    player.onGround &&
+    pb.y + pb.h <= plat.y + 8 &&
+    pb.y + pb.h >= plat.y - 2 &&
+    pb.x + pb.w > plat.x &&
+    pb.x < plat.x + plat.w
+  );
+}
+
+/**
+ * @function updateCrumblePlat
+ * solid → (밟으면) shaking → (유예 후) gone → (시간 후) solid 순환.
+ * gone 상태에서는 솔리드가 사라져 머물던 플레이어가 추락
+ */
+function updateCrumblePlat(c) {
+  if (c.state === "gone") {
+    if (millis() - c.goneAt > CRUMBLE_RESPAWN_MS) c.state = "solid";
+    return; // 붕괴 중에는 발판 없음
+  }
+
+  // solid / shaking 모두 밟을 수 있음
+  blockOnSolid(c);
+
+  if (c.state === "solid" && isStandingOn(c)) {
+    c.state = "shaking";
+    c.shakeAt = millis();
+  }
+  if (c.state === "shaking" && millis() - c.shakeAt > CRUMBLE_SHAKE_MS) {
+    c.state = "gone";
+    c.goneAt = millis();
+    spawnCrumbleDebris(c);
+  }
+}
+
+/**
+ * @function drawCrumblePlat
+ * 상태별 렌더링 — solid/shaking(흔들림+균열), gone(복구 예고 점멸 윤곽)
+ */
+function drawCrumblePlat(c) {
+  if (c.state === "gone") {
+    // 복구 예고 — 점멸하는 점선 윤곽
+    let blink = 0.18 + 0.16 * sin(millis() * 0.012);
+    push();
+    noFill();
+    stroke(COLOR.box);
+    strokeWeight(1.5);
+    drawingContext.setLineDash([5, 5]);
+    drawingContext.globalAlpha = blink;
+    rect(c.x, c.y, c.w, c.h, 3);
+    drawingContext.setLineDash([]);
+    drawingContext.globalAlpha = 1;
+    pop();
+    return;
+  }
+
+  push();
+  // 붕괴 임박할수록 크게 흔들림
+  let shake = 0;
+  if (c.state === "shaking") {
+    let prog = (millis() - c.shakeAt) / CRUMBLE_SHAKE_MS;
+    shake = (1 + prog * 2) * random(-1, 1);
+  }
+  translate(shake, shake * 0.5);
+
+  fill(COLOR.box);
+  stroke(COLOR.terrainHi);
+  strokeWeight(2);
+  rect(c.x, c.y, c.w, c.h, 3);
+
+  // 균열 무늬
+  stroke(COLOR.bg);
+  strokeWeight(1.5);
+  line(c.x + c.w * 0.32, c.y + 2, c.x + c.w * 0.42, c.y + c.h - 2);
+  line(c.x + c.w * 0.66, c.y + 2, c.x + c.w * 0.56, c.y + c.h - 2);
+  line(c.x + c.w * 0.42, c.y + c.h * 0.5, c.x + c.w * 0.66, c.y + c.h * 0.5);
+  pop();
+}
+
+/**
+ * @function spawnCrumbleDebris
+ * 발판 붕괴 순간 아래로 쏟아지는 회색 파편 생성
+ */
+function spawnCrumbleDebris(c) {
+  let parts = [];
+  let count = 12;
+  for (let i = 0; i < count; i++) {
+    parts.push({
+      x: c.x + random(c.w),
+      y: c.y + random(c.h),
+      vx: random(-1.4, 1.4),
+      vy: random(0.5, 2.2),
+      size: random(4, 9),
+      rot: random(TWO_PI),
+      vrot: random(-0.3, 0.3),
+      life: 1,
+      decay: random(0.012, 0.02),
+    });
+  }
+  crumbleDebris.push({ particles: parts });
+}
+
+/**
+ * @function updateCrumbleDebris
+ * 붕괴 파편 낙하 · 소멸 처리
+ */
+function updateCrumbleDebris() {
+  for (let d of crumbleDebris) {
+    for (let p of d.particles) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.28;
+      p.rot += p.vrot;
+      p.life -= p.decay;
+    }
+    d.particles = d.particles.filter((p) => p.life > 0);
+  }
+  crumbleDebris = crumbleDebris.filter((d) => d.particles.length > 0);
+}
+
+/**
+ * @function drawCrumbleDebris
+ * 붕괴 파편 렌더링
+ */
+function drawCrumbleDebris() {
+  for (let d of crumbleDebris) {
+    for (let p of d.particles) {
+      push();
+      translate(p.x, p.y);
+      rotate(p.rot);
+      noStroke();
+      drawingContext.globalAlpha = max(0, min(1, p.life));
+      fill(COLOR.box);
+      rect(-p.size / 2, -p.size / 2, p.size, p.size, 1);
+      drawingContext.globalAlpha = 1;
+      pop();
+    }
+  }
+}
+
+/* ============================================================
+ * 좌우 왕복 이동 발판 — 타이밍 맞춰 올라타 갭 건너기
+ * ========================================================== */
+
+/**
+ * @function updateMovePlat
+ * 사인 곡선으로 좌우 왕복. 윗면에 올라탄 플레이어를 이동량(dx)만큼 함께 옮김
+ */
+function updateMovePlat(p) {
+  let prevX = p.x;
+  p.phase += MOVE_PLAT_SPEED;
+  p.x = p.baseX + sin(p.phase) * (p.range != null ? p.range : MOVE_PLAT_RANGE);
+  let dx = p.x - prevX;
+
+  // 올라타 있으면(발이 윗면 근처 + 하강/정지 중) 함께 이동
+  let pb = getPlayerBounds();
+  let feetY = pb.y + pb.h;
+  let onTop =
+    feetY >= p.y - 5 &&
+    feetY <= p.y + p.h * 0.6 &&
+    pb.x + pb.w > p.x &&
+    pb.x < p.x + p.w &&
+    player.vy >= 0;
+  if (onTop) player.x += dx;
+
+  blockOnSolid(p);
+}
+
+/**
+ * @function drawMovePlat
+ * 이동 발판 본체 + 좌우 이동 표식
+ */
+function drawMovePlat(p) {
+  push();
+  noStroke();
+  fill(COLOR.balloon);
+  rect(p.x, p.y, p.w, p.h, 4);
+  fill(COLOR.uiText);
+  rect(p.x, p.y, p.w, 3); // 상단 하이라이트
+  fill(COLOR.bg);
+  textAlign(CENTER, CENTER);
+  textStyle(BOLD);
+  textSize(13);
+  text("↔", p.x + p.w / 2, p.y + p.h / 2 + 1);
+  pop();
+}
+
 /**
  * @function revealSensorWhenBalloonsGone
  * 살아있는 풍선이 하나도 없을 때 센서를 처음 공개 (바닥에서 솟아오르는 트리거)
@@ -215,7 +579,7 @@ function handleShapeSensor(sensor, door) {
 
 /**
  * @function initialStage2
- * Stage 2 시작 시 플레이어 + 모든 오브젝트 초기화 (풍선·경사·문·클리어)
+ * Stage 2 시작 시 플레이어 + 모든 오브젝트 초기화 (풍선·경사·문·클리어·클라이맥스)
  */
 function initialStage2() {
   // 창 크기에 맞춰 바닥 y 좌표를 재계산
@@ -233,6 +597,7 @@ function initialStage2() {
 
   loadStage2Layout();
   balloonPops = [];
+  crumbleDebris = [];
 
   stage2StartTime = millis();
   stage2ElapsedTime = 0;
@@ -318,14 +683,22 @@ function drawBalloonPops() {
 
 /**
  * @function updateStage2
- * Stage 2 매 프레임 업데이트 — 경사 가속, 풍선/문 상호작용
+ * Stage 2 매 프레임 업데이트 — 경사·풍선·문 + 입체 클라이맥스 기믹
  */
 function updateStage2() {
-  // 바닥 (좌측 시작 + 우측 도착)
+  // 배경 시차 도형
+  updateStage2BgShapes();
+
+  // 바닥 (좌측 시작 + RB1 + RB3 골인)
   for (let g of stage2Grounds) blockOnSolid(g);
 
   // 경사면 — 원이면 표면 굴림 + 가속, 그 외 도형이면 솔리드 박스
   for (let s of stage2Slopes) handleSlope(s);
+
+  // 입체 클라이맥스 기믹 — 점프 패드 → 무너지는 발판 → 이동 발판
+  for (let pad of stage2JumpPads) updateJumpPad(pad);
+  for (let c of stage2CrumblePlats) updateCrumblePlat(c);
+  for (let mp of stage2MovePlats) updateMovePlat(mp);
 
   // 풍선 상호작용
   for (let b of stage2Balloons) {
@@ -348,16 +721,20 @@ function updateStage2() {
   updateStage2Hazards();
   checkHazardCollision();
 
-  // 풍선 폭발 파티클 갱신
+  // 이펙트 파티클 갱신
   updateBalloonPops();
+  updateCrumbleDebris();
 }
 
 /**
  * @function drawStage2
- * Stage 2 지형 · 경사 · 풍선 · 문 · 클리어 아이템 렌더링
+ * Stage 2 배경 · 지형 · 경사 · 기믹 · 풍선 · 문 · 클리어 아이템 렌더링
  */
 function drawStage2() {
-  // 바닥 (좌측 시작 + 우측 도착 — 사이는 절벽)
+  // 깊이감 배경 (그라데이션 + 시차 도형)
+  drawStage2Background();
+
+  // 바닥 (좌측 시작 + RB1 + RB3 — 사이는 절벽/갭)
   noStroke();
   fill(COLOR.terrain);
   for (let g of stage2Grounds) {
@@ -368,13 +745,13 @@ function drawStage2() {
     rect(g.x, g.y, g.w, 3);
   }
 
-  // 절벽 위험 표시 (양 바닥 끝 빨간 라인)
+  // 갭(절벽) 가장자리 위험 표시 — 각 바닥 조각의 갭에 면한 끝(화면 경계 제외)
   stroke(COLOR.spike);
   strokeWeight(2);
-  let leftEdge = stage2Grounds[0];
-  let rightEdge = stage2Grounds[1];
-  line(leftEdge.x + leftEdge.w, leftEdge.y, leftEdge.x + leftEdge.w, leftEdge.y + 20);
-  line(rightEdge.x, rightEdge.y, rightEdge.x, rightEdge.y + 20);
+  for (let g of stage2Grounds) {
+    if (g.x > 0) line(g.x, g.y, g.x, g.y + 20);
+    if (g.x + g.w < CANVAS_W) line(g.x + g.w, g.y, g.x + g.w, g.y + 20);
+  }
 
   // 경사면 (왼쪽 위 → 오른쪽 아래)
   for (let s of stage2Slopes) {
@@ -383,6 +760,12 @@ function drawStage2() {
     strokeWeight(2);
     triangle(s.x, s.y, s.x, s.y + s.h, s.x + s.w, s.y + s.h);
   }
+
+  // 입체 클라이맥스 기믹 (지형류 — 풍선/문보다 먼저)
+  for (let pad of stage2JumpPads) drawJumpPad(pad);
+  for (let c of stage2CrumblePlats) drawCrumblePlat(c);
+  for (let mp of stage2MovePlats) drawMovePlat(mp);
+  drawCrumbleDebris();
 
   // 풍선
   for (let b of stage2Balloons) {
@@ -410,7 +793,7 @@ function drawStage2() {
   // 사각형 인식 패널 (문 앞) — 풍선을 모두 터뜨리면 바닥에서 솟아오름
   if (stage2ShapeSensor.revealed) {
     let sensor = stage2ShapeSensor;
-    let floorY = stage2Grounds[1].y; // 480 — 플랫폼 윗면
+    let floorY = stage2Grounds[1].y; // RB1 윗면 — 플랫폼 표면
     let elapsed = millis() - sensor.revealedAt;
     let riseT = constrain(elapsed / 500, 0, 1);
     // 바닥면(floorY)에서 targetY까지 솟아오름
@@ -502,14 +885,19 @@ function drawStage2() {
     pop();
   }
 
-  // 힌트 텍스트
+  // 힌트 텍스트 (두 줄)
   fill(COLOR.uiText);
   textAlign(LEFT, TOP);
   textSize(12);
   textStyle(NORMAL);
   text(
-    "Hint: 원(Q)으로 경사 굴러 절벽 넘기 → 삼각형(E)으로 풍선 모두 터뜨리기 → 패널이 솟아오르면 사각형(W)으로 밟아 문 열기 → 원(Q)으로 삼각형 비 피해 골인",
+    "Hint: 원(Q) 경사 굴러 절벽 넘기 → 삼각형(E)으로 풍선 모두 터뜨리기 → 사각형(W)으로 솟은 패널 밟아 문 열기",
     16,
     58
+  );
+  text(
+    "      원(Q)으로 삼각형 비 질주 → 점프대(가벼운 원이 가장 높이!) → 무너지는 발판 빠르게 → 흔들 발판 타이밍 점프 → ★",
+    16,
+    74
   );
 }

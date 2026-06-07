@@ -8,8 +8,19 @@ let stage1Box = { x: 320, y: 380, w: 32, h: 32, vy: 0 };
 // 버튼은 구덩이(핏) 바닥에 위치 — 박스가 떨어져야만 닿을 수 있음
 let stage1Button = { x: 520, y: 520, w: 100, h: 20, isPressed: false };
 let stage1Door = { x: 700, y: 380, w: 18, h: 100, isExist: true };
-// 클리어 아이템은 확장된 우측 영역 끝 근처에 배치 — 그 사이 공간이 새 요소 추가용
-let stage1ClearItem = { x: 1320, y: 430, w: 24, h: 32 };
+// 클리어 아이템 — 문 통과 후 계단식 점프 블록을 밟고 올라가야 닿는 높은 곳
+let stage1ClearItem = { x: 1243, y: 240, w: 24, h: 32 };
+// 점프 블록 — 좌측은 상자 발판까지 등반(상자를 떨어뜨려 버튼 누름),
+// 우측은 문 통과 후 클리어 아이템까지 등반. 마지막 좌측 블록(폭 넓음)은 상자 발판.
+// (실제 좌표는 initialStage1에서 GROUND_Y 기준으로 재설정)
+let stage1JumpBlocks = [
+  { x: 110, y: 400, w: 85,  h: 18 },
+  { x: 240, y: 320, w: 85,  h: 18 },
+  { x: 360, y: 240, w: 160, h: 18 },
+  { x: 840,  y: 400, w: 110, h: 20 },
+  { x: 1020, y: 320, w: 110, h: 20 },
+  { x: 1200, y: 240, w: 110, h: 20 },
+];
 // 문 위 천장 (점프 우회 방지). 너비 235 > 원 점프 비행 거리 187
 let stage1Walls = [
   { x: 580, y: 50, w: 235, h: 330 },
@@ -42,13 +53,27 @@ function initialStage1() {
     { x: 0,   y: GROUND_Y, w: 520,          h: 300 },
     { x: 620, y: GROUND_Y, w: CANVAS_W - 620, h: 300 },
   ];
-  stage1Box      = { x: 320, y: GROUND_Y - 100, w: 32, h: 32, vy: 0 };
   stage1Button   = { x: 520, y: GROUND_Y + 40,  w: 100, h: 20, isPressed: false };
-  stage1Door     = { x: 700, y: GROUND_Y - 100, w: 18, h: 100, isExist: true };
-  stage1ClearItem = { x: 1320, y: GROUND_Y - 50, w: 24, h: 32 };
-  // 문 위 천장 — HUD 하단(y=52)부터 문 상단(GROUND_Y-100)까지 막아 점프 우회 방지
+  // 문을 더 높게(상단 GROUND_Y-200) — 점프 블록 발판 높이대까지 통로를 막음
+  stage1Door     = { x: 700, y: GROUND_Y - 200, w: 18, h: 200, isExist: true };
+  // 점프 블록 — 좌측 3개는 시작 지점에서 상자 발판까지 80px씩 등반,
+  // 우측 3개는 문 통과 후 클리어 아이템까지 등반. 좌측 마지막(폭 160)은 상자 발판.
+  stage1JumpBlocks = [
+    { x: 110, y: GROUND_Y - 80,  w: 85,  h: 18 },
+    { x: 240, y: GROUND_Y - 160, w: 85,  h: 18 },
+    { x: 360, y: GROUND_Y - 240, w: 160, h: 18 }, // 상자 발판 (오른쪽 끝 x=520 = 구덩이 입구)
+    { x: 840,  y: GROUND_Y - 80,  w: 110, h: 20 },
+    { x: 1020, y: GROUND_Y - 160, w: 110, h: 20 },
+    { x: 1200, y: GROUND_Y - 240, w: 110, h: 20 },
+  ];
+  // 상자 — 좌측 발판 위(GROUND_Y-240)에 안착. 사각형으로 밀어 구덩이로 떨어뜨려 버튼을 누름
+  stage1Box      = { x: 375, y: GROUND_Y - 272, w: 32, h: 32, vy: 0 };
+  // 클리어 아이템 — 우측 마지막(가장 높은) 점프 블록 위에 배치
+  stage1ClearItem = { x: 1243, y: GROUND_Y - 274, w: 24, h: 32 };
+  // 문 위 천장 — HUD 하단(y=52)부터 문 상단(GROUND_Y-200)까지 막아 점프 우회 방지
+  // (문이 높아진 만큼 벽 세로 길이는 GROUND_Y-152 → GROUND_Y-252로 100px 짧아짐)
   stage1Walls = [
-    { x: 580, y: 52, w: 235, h: GROUND_Y - 152 },
+    { x: 580, y: 52, w: 235, h: GROUND_Y - 252 },
   ];
 
   stage1StartTime = millis();
@@ -65,9 +90,10 @@ function updateBoxPhysics() {
   stage1Box.vy = (stage1Box.vy || 0) + GRAVITY * 0.6;
   stage1Box.y += stage1Box.vy;
 
-  // 박스 가로 범위와 겹치는 솔리드(좌·우 지면, 버튼) 중 가장 위 표면을 바닥으로 사용
-  // 박스의 어느 부분이라도 지면 위에 걸쳐 있으면 떠받쳐짐 → 완전히 절벽을 넘은 뒤에만 추락
-  let surfaces = stage1Grounds.concat([stage1Button]);
+  // 박스 가로 범위와 겹치는 솔리드(좌·우 지면, 점프 블록 발판, 버튼) 중 가장 위 표면을 바닥으로 사용
+  // 박스의 어느 부분이라도 표면 위에 걸쳐 있으면 떠받쳐짐 → 완전히 가장자리를 넘은 뒤에만 추락
+  // (좌측 발판 위에 놓인 상자를 밀어 발판 끝 너머 구덩이로 떨어뜨리는 데 사용)
+  let surfaces = stage1Grounds.concat(stage1JumpBlocks).concat([stage1Button]);
   let floorY = Infinity;
   for (let s of surfaces) {
     let xOverlap = stage1Box.x + stage1Box.w > s.x && stage1Box.x < s.x + s.w;
@@ -236,6 +262,22 @@ function drawStage1() {
     ellipse(stage1Door.x + stage1Door.w - 4, stage1Door.y + stage1Door.h / 2, 4, 4);
   }
 
+  // 점프 블록 (문 통과 후 계단식 발판 — 밟고 올라가 별 획득)
+  for (let jb of stage1JumpBlocks) {
+    noStroke();
+    fill(COLOR.balloon);
+    rect(jb.x, jb.y, jb.w, jb.h, 4);
+    // 상단 하이라이트
+    fill(COLOR.uiText);
+    rect(jb.x, jb.y, jb.w, 3);
+    // 점프 발판 표식 (위 방향 화살표)
+    fill(COLOR.bg);
+    textAlign(CENTER, CENTER);
+    textSize(13);
+    textStyle(BOLD);
+    text("▲", jb.x + jb.w / 2, jb.y + jb.h / 2 + 2);
+  }
+
   // 클리어 아이템 (획득 후에는 숨김 — 파티클 이펙트가 자리를 대체)
   if (!stage1ClearItem.collected) {
     push();
@@ -261,7 +303,7 @@ function drawStage1() {
   textAlign(LEFT, TOP);
   textSize(12);
   textStyle(NORMAL);
-  text("Hint: 사각형으로 상자를 밀어 구덩이에 떨어뜨려 버튼을 누르세요", 16, 58);
+  text("Hint: 원으로 점프 블록을 올라가 상자에 닿고, 사각형으로 밀어 떨어뜨려 버튼을 누른 뒤 문 너머 ★를 획득하세요", 16, 58);
 }
 
 /**
@@ -274,6 +316,8 @@ function updateStage1() {
   // 버튼은 박스만 인식해 문을 열지만, 발판 자체는 플레이어에게도 솔리드 (빠진 뒤 탈출 가능)
   blockOnSolid(stage1Button);
   boxCollision();
+  // 점프 블록은 모든 도형에 솔리드 — 착지 시 onGround 회복돼 연속 점프로 올라갈 수 있음
+  for (let jb of stage1JumpBlocks) blockOnSolid(jb);
   for (let w of stage1Walls) blockOnSolid(w);
   blockOnDoor(stage1Door);
   buttonFunction();

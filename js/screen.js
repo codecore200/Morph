@@ -22,7 +22,7 @@ function initTitleShapes() {
   for (let i = 0; i < 8; i++) {
     titleShapes.push({
       shape: shapes[i % 3],
-      x: random(CANVAS_W),
+      x: random(VIEWPORT_W),
       y: random(CANVAS_H),
       size: random(40, 80),
       vx: random(-0.4, 0.4),
@@ -42,8 +42,8 @@ function updateTitleShapes() {
     s.x += s.vx;
     s.y += s.vy;
     s.rot += s.vrot;
-    if (s.x < -50) s.x = CANVAS_W + 50;
-    if (s.x > CANVAS_W + 50) s.x = -50;
+    if (s.x < -50) s.x = VIEWPORT_W + 50;
+    if (s.x > VIEWPORT_W + 50) s.x = -50;
     if (s.y < -50) s.y = CANVAS_H + 50;
     if (s.y > CANVAS_H + 50) s.y = -50;
   }
@@ -68,7 +68,7 @@ function drawTitleScreen() {
     pop();
   }
 
-  let cx = CANVAS_W / 2;
+  let cx = VIEWPORT_W / 2;
   let cy = CANVAS_H / 2;
 
   // 타이틀
@@ -157,7 +157,7 @@ function titleScreenClick() {
  * 스테이지 선택 화면 렌더링
  */
 function drawStageSelect() {
-  let cx = CANVAS_W / 2;
+  let cx = VIEWPORT_W / 2;
 
   // 타이틀
   noStroke();
@@ -233,6 +233,19 @@ function drawStageSelect() {
     fill(s.color);
     textSize(12);
     text("CLICK TO START", x + cardW / 2, cardY + 215);
+
+    // 클리어 기록 배지 (localStorage에 저장된 최고 별점 표시)
+    let record = getStageClear(s.num);
+    if (record) {
+      let badgeText = "CLEAR  ";
+      for (let i = 0; i < record.stars; i++) badgeText += "★";
+      for (let i = record.stars; i < 3; i++) badgeText += "☆";
+      noStroke();
+      fill(COLOR.clear);
+      textSize(13);
+      textStyle(BOLD);
+      text(badgeText, x + cardW / 2, cardY + 24);
+    }
   }
 
   // 좌상단: 타이틀로 돌아가기 버튼
@@ -297,13 +310,13 @@ function moveToStage(stageNumber) {
  * CLEAR 결과 UI (점수 · 별점 · RESTART/NEXT/QUIT 버튼)
  */
 function showClearWindow() {
-  let cx = CANVAS_W / 2;
+  let cx = VIEWPORT_W / 2;
   let cy = height / _gs / 2;
 
   // 어두운 오버레이
   noStroke();
   fill(26, 27, 46, 200);
-  rect(0, 0, CANVAS_W, height / _gs);
+  rect(0, 0, VIEWPORT_W, height / _gs);
 
   // 패널
   let pw = 460;
@@ -425,13 +438,13 @@ function onQuitButtonClick() {
  * FAIL 팝업 + RESTART/QUIT 버튼 렌더링
  */
 function failScreen() {
-  let cx = CANVAS_W / 2;
+  let cx = VIEWPORT_W / 2;
   let cy = height / _gs / 2;
 
   // 오버레이
   noStroke();
   fill(26, 27, 46, 200);
-  rect(0, 0, CANVAS_W, height / _gs);
+  rect(0, 0, VIEWPORT_W, height / _gs);
 
   // 패널
   let pw = 420;

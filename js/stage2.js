@@ -47,13 +47,14 @@ function loadStage2Layout() {
   let GY = GROUND_Y;
 
   // 좌측 시작 플랫폼(절벽 위) / 우측 바닥은 갭으로 분할 — 모두 GROUND_Y 기준 상대 배치.
-  // 동선: RB1(540~1160) ─갭A─▶ 무너지는 발판(1330~1410) ─갭─▶ MB 디딤돌(1435~1485)
-  //        ─갭B(이동 발판)─▶ RB3(1560~) 골인. 각 갭 사이에 고정 발판을 둬 운빨 없이 통과
+  // 사이드스크롤 확장으로 RB1 내부에 이동 거리를 더 두고 골인 발판도 넓힘.
+  // 동선: RB1(540~1560, 풍선·센서 → 빈 구간 → 낙하 위험지대 → 점프 패드) ─갭A─▶
+  //        무너지는 발판(1730~1810) ─갭─▶ MB 디딤돌(1835~1885) ─갭B(이동 발판)─▶ RB3(1960~) 골인
   stage2Grounds = [
     { x: 0,    y: GY - 100, w: 160,            h: 300 }, // 좌측 시작 플랫폼
-    { x: 540,  y: GY,       w: 620,            h: 300 }, // RB1 (540~1160)
-    { x: 1435, y: GY,       w: 50,             h: 300 }, // MB 고정 디딤돌 (1435~1485)
-    { x: 1560, y: GY,       w: CANVAS_W - 1560, h: 300 }, // RB3 (1560~) 골인 발판
+    { x: 540,  y: GY,       w: 1020,           h: 300 }, // RB1 (540~1560)
+    { x: 1835, y: GY,       w: 50,             h: 300 }, // MB 고정 디딤돌 (1835~1885)
+    { x: 1960, y: GY,       w: CANVAS_W - 1960, h: 300 }, // RB3 (1960~) 골인 발판
   ];
 
   // 경사면: 좌측 플랫폼 우단(GROUND_Y-100) → 우측 플랫폼 상단(GROUND_Y)
@@ -73,28 +74,28 @@ function loadStage2Layout() {
   stage2ShapeSensor = { x: 696, y: GY - 8,   w: 20, h: 8,
                         activated: false, revealed: false, revealedAt: 0,
                         targetY: GY - 8 };
-  stage2ClearItem   = { x: 1572, y: GY - 50, w: 24, h: 32 };
+  stage2ClearItem   = { x: 1972, y: GY - 50, w: 24, h: 32 };
 
   // 문 위 천장 벽 — HUD 하단(y=52)부터 문 상단(GROUND_Y-100)까지
   stage2Walls = [
     { x: 595, y: 52, w: 220, h: GY - 152 },
   ];
 
-  // 낙하 삼각형 위험 구간 — 천장벽 너머(820) ~ 점프 패드 진입 여유(1080). RB1 위, 세로는 바닥까지
-  stage2HazardZone = { x: 820, y: 60, w: 260, h: GY - 60 };
+  // 낙하 삼각형 위험 구간 — 풍선 구간 너머 빈 통로를 지나(1220) ~ 점프 패드 진입 여유(1480). RB1 위, 세로는 바닥까지
+  stage2HazardZone = { x: 1220, y: 60, w: 260, h: GY - 60 };
 
   // --- 입체 클라이맥스 기믹 배치 ---
-  // 점프 패드: RB1 끝부분 위(1095~1155). 비를 뚫고 달려와 원으로 밟으면 갭A를 넘어 무너지는 발판에 착지
+  // 점프 패드: RB1 끝부분 위(1495~1555). 비를 뚫고 달려와 원으로 밟으면 갭A를 넘어 무너지는 발판에 착지
   stage2JumpPads = [
-    { x: 1095, y: GY - 14, w: 60, h: 14, firedAt: 0 },
+    { x: 1495, y: GY - 14, w: 60, h: 14, firedAt: 0 },
   ];
-  // 무너지는 발판: 갭A(1160~1330) 너머(1330~1410). 밟으면 흔들리다 붕괴 — 빠르게 MB로 점프
+  // 무너지는 발판: 갭A(1560~1730) 너머(1730~1810). 밟으면 흔들리다 붕괴 — 빠르게 MB로 점프
   stage2CrumblePlats = [
-    { x: 1330, y: GY, w: 80, h: 18, state: "solid", shakeAt: 0, goneAt: 0 },
+    { x: 1730, y: GY, w: 80, h: 18, state: "solid", shakeAt: 0, goneAt: 0 },
   ];
-  // 좌우 왕복 이동 발판: 갭B(1485~1560)를 메우며 왕복(1495~1545). MB↔RB3 사이라 양쪽 고정 → 운빨 없음
+  // 좌우 왕복 이동 발판: 갭B(1885~1960)를 메우며 왕복(1895~1945). MB↔RB3 사이라 양쪽 고정 → 운빨 없음
   stage2MovePlats = [
-    { baseX: 1495, x: 1495, y: GY - 6, w: 50, h: 16, range: 15, phase: 0 },
+    { baseX: 1895, x: 1895, y: GY - 6, w: 50, h: 16, range: 15, phase: 0 },
   ];
 
   // 우측 통로의 낙하 삼각형 장애물 웨이브 셋업
@@ -582,6 +583,8 @@ function handleShapeSensor(sensor, door) {
  * Stage 2 시작 시 플레이어 + 모든 오브젝트 초기화 (풍선·경사·문·클리어·클라이맥스)
  */
 function initialStage2() {
+  // Stage 2는 기존 1600 너비 유지 (computeGroundY가 CANVAS_W에 의존하므로 먼저 설정)
+  CANVAS_W = STAGE2_CANVAS_W;
   // 창 크기에 맞춰 바닥 y 좌표를 재계산
   GROUND_Y = computeGroundY();
 

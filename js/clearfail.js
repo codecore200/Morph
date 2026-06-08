@@ -26,6 +26,7 @@ function checkClearItemCollision(clearItem) {
  * 클리어 처리 (시간 정지, CLEAR 상태로 전환)
  */
 function triggerStageClear() {
+  saveStageClear(currentStage, getCurrentStars());
   setGameState(STATE.CLEAR);
 }
 

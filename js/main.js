@@ -6,6 +6,10 @@ let currentStage = 1;
 // draw()에서 계산한 균등 스케일·오프셋 — gameMX/gameMY가 참조
 let _gs = 1, _gox = 0, _goy = 0;
 
+// 사이드스크롤 카메라 — 플레이어를 화면 중앙 부근에 두고 좌우로 따라가며,
+// 레벨(CANVAS_W) 양 끝에서는 더 이상 스크롤되지 않도록 고정한다.
+let cameraX = 0;
+
 let player = {
   x: 0,
   y: 0,
@@ -42,9 +46,9 @@ function setup() {
 function draw() {
   background(COLOR.bg);
 
-  // 가로를 CANVAS_W 기준으로 스케일 → 세로는 창 높이를 자동으로 꽉 채움
+  // 가로를 VIEWPORT_W(고정 화면 폭) 기준으로 스케일 → 세로는 창 높이를 자동으로 꽉 채움
   // GROUND_Y는 각 스테이지 초기화 때 computeGroundY()로 결정하므로 여기선 스케일만 계산
-  _gs  = width / CANVAS_W;
+  _gs  = width / VIEWPORT_W;
   _gox = 0;
   _goy = 0;
 
@@ -64,16 +68,20 @@ function draw() {
       updatePlayerPhysics();
       updateCurrentStage();
     }
+    updateCamera();
 
-    // 렌더링은 이펙트 중에도 계속 (정지 화면 위에 파티클이 튐)
+    // 월드(레벨) 렌더링은 카메라만큼 좌우로 이동 — 렌더링은 이펙트 중에도 계속
+    push();
+    translate(-cameraX, 0);
     drawCurrentStage();
     drawPlayer();
 
     // 클리어 이펙트 갱신·렌더 (활성 시에만 동작)
     updateClearEffect();
     drawClearEffect();
+    pop();
 
-    // HUD
+    // HUD는 카메라와 무관하게 화면에 고정
     timeAndStar();
     headerUI();
 
@@ -84,17 +92,33 @@ function draw() {
     }
   } else if (gameState === STATE.CLEAR) {
     // 클리어 화면 뒤에 정지된 스테이지 배경 잠시 노출
+    push();
+    translate(-cameraX, 0);
     drawCurrentStage();
     drawPlayer();
+    pop();
     headerUI();
     showClearWindow();
   } else if (gameState === STATE.FAIL) {
+    push();
+    translate(-cameraX, 0);
     drawCurrentStage();
+    pop();
     headerUI();
     failScreen();
   }
 
   pop();
+}
+
+/**
+ * @function updateCamera
+ * 플레이어를 화면 중앙 부근에 두도록 cameraX를 갱신.
+ * 레벨 양 끝(0 ~ CANVAS_W - VIEWPORT_W)을 벗어나지 않도록 고정한다.
+ */
+function updateCamera() {
+  let maxCameraX = max(0, CANVAS_W - VIEWPORT_W);
+  cameraX = constrain(player.x - VIEWPORT_W / 2, 0, maxCameraX);
 }
 
 /**
@@ -178,7 +202,7 @@ function toggleFullscreen() {
  * 현재 창 크기 기준으로 바닥 y 좌표를 계산 — 스케일 후 게임 세로 공간의 하단 60px 위
  */
 function computeGroundY() {
-  return floor(windowHeight * CANVAS_W / windowWidth) - 60;
+  return floor(windowHeight * VIEWPORT_W / windowWidth) - 60;
 }
 
 /**

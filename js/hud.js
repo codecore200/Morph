@@ -44,9 +44,9 @@ function headerUI() {
   // 배경
   noStroke();
   fill(COLOR.terrain);
-  rect(0, 0, CANVAS_W, 50);
+  rect(0, 0, VIEWPORT_W, 50);
   fill(COLOR.terrainHi);
-  rect(0, 50, CANVAS_W, 2);
+  rect(0, 50, VIEWPORT_W, 2);
 
   // 좌측: 스테이지 + 시간
   fill(COLOR.uiText);
@@ -68,7 +68,7 @@ function headerUI() {
   let cdRatio = 1 - cdRemain / MORPH_COOLDOWN_MS;
   let barW = 160;
   let barH = 8;
-  let barX = CANVAS_W / 2 - barW / 2;
+  let barX = VIEWPORT_W / 2 - barW / 2;
   let barY = 21;
   fill(COLOR.bgFar);
   rect(barX, barY, barW, barH, 4);
@@ -77,7 +77,7 @@ function headerUI() {
   fill(COLOR.uiText);
   textAlign(CENTER, CENTER);
   textSize(10);
-  text("MORPH", CANVAS_W / 2, barY - 6);
+  text("MORPH", VIEWPORT_W / 2, barY - 6);
 
   // 우측: 별 개수
   let stars = getCurrentStars();
@@ -87,6 +87,6 @@ function headerUI() {
   let starsText = "";
   for (let i = 0; i < stars; i++) starsText += "★";
   for (let i = stars; i < 3; i++) starsText += "☆";
-  text("STARS " + starsText, CANVAS_W - 20, 25);
+  text("STARS " + starsText, VIEWPORT_W - 20, 25);
   pop();
 }

@@ -55,3 +55,41 @@ function setGameState(newState) {
  */
 function gameMX() { return mouseX / _gs; }
 function gameMY() { return mouseY / _gs; }
+
+// localStorage에 저장되는 스테이지 클리어 기록 키
+const STAGE_CLEAR_STORAGE_KEY = "morph_stage_clears";
+
+/**
+ * @function loadStageClears
+ * localStorage에서 스테이지별 클리어 기록(별점)을 불러옴 — 없거나 손상 시 빈 객체 반환
+ */
+function loadStageClears() {
+  try {
+    let raw = localStorage.getItem(STAGE_CLEAR_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+/**
+ * @function saveStageClear
+ * 스테이지 클리어 시 호출 — 기존 기록보다 별점이 높을 때만 갱신해 최고 기록을 보존
+ */
+function saveStageClear(stageNumber, stars) {
+  let clears = loadStageClears();
+  let prev = clears[stageNumber];
+  if (!prev || stars > prev.stars) {
+    clears[stageNumber] = { stars: stars };
+    localStorage.setItem(STAGE_CLEAR_STORAGE_KEY, JSON.stringify(clears));
+  }
+}
+
+/**
+ * @function getStageClear
+ * 해당 스테이지의 클리어 기록 반환 (없으면 null)
+ */
+function getStageClear(stageNumber) {
+  let clears = loadStageClears();
+  return clears[stageNumber] || null;
+}

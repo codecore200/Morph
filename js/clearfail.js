@@ -55,7 +55,7 @@ function spawnClearEffect(item) {
   clearEffect.x = cx;
   clearEffect.y = cy;
   clearEffect.particles = [];
-  clearEffect.startAt = millis();
+  clearEffect.startAt = gmillis();
   clearEffect.pendingClearAt = clearEffect.startAt + CLEAR_EFFECT_DURATION_MS;
 
   let count = 28;
@@ -94,7 +94,7 @@ function updateClearEffect() {
   }
   clearEffect.particles = clearEffect.particles.filter((p) => p.life > 0);
 
-  if (millis() >= clearEffect.pendingClearAt) {
+  if (gmillis() >= clearEffect.pendingClearAt) {
     triggerStageClear();
   }
 }
@@ -106,7 +106,7 @@ function updateClearEffect() {
 function drawClearEffect() {
   if (!clearEffect.active) return;
 
-  let elapsed = millis() - clearEffect.startAt;
+  let elapsed = gmillis() - clearEffect.startAt;
 
   // 초기 0~350ms 확장 링 플래시
   let ringT = constrain(elapsed / 350, 0, 1);

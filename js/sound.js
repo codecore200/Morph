@@ -38,6 +38,16 @@ function playBGM(bgmName) {
 }
 
 /**
+ * @function stopBGM
+ * 배경음악 재생을 정지(일시정지)한다. 스테이지를 벗어날 때 호출되어
+ * 타이틀·스테이지 선택·클리어/실패 화면 등에서는 음악이 흐르지 않도록 한다.
+ * (bgmMuted 상태는 건드리지 않으므로 다음 스테이지 진입 시 음소거 여부가 그대로 유지된다)
+ */
+function stopBGM() {
+  if (bgmAudio) bgmAudio.pause();
+}
+
+/**
  * @function toggleMute
  * BGM 음소거 토글(M 키). 해제 시 재생을 재개한다.
  */

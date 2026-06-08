@@ -10,6 +10,11 @@ let _gs = 1, _gox = 0, _goy = 0;
 // 레벨(CANVAS_W) 양 끝에서는 더 이상 스크롤되지 않도록 고정한다.
 let cameraX = 0;
 
+// 일시정지 상태 — gmillis()가 이 값들을 참조해 정지 시간을 게임 타이머에서 제외한다.
+let isPaused = false;
+let pausedAccum = 0;
+let pauseStartedAt = 0;
+
 let player = {
   x: 0,
   y: 0,
@@ -61,8 +66,8 @@ function draw() {
   } else if (gameState === STATE.STAGE_SELECT) {
     drawStageSelect();
   } else if (gameState === STATE.PLAYING) {
-    // 클리어 이펙트 재생 중에는 물리/입력/스테이지 업데이트를 멈춰 픽업 순간을 고정
-    if (!clearEffect.active) {
+    // 클리어 이펙트 재생 중이거나 일시정지 중에는 물리/입력/스테이지 업데이트를 멈춤
+    if (!clearEffect.active && !isPaused) {
       handleMoveInput();
       applyGravity();
       updatePlayerPhysics();
@@ -70,14 +75,14 @@ function draw() {
     }
     updateCamera();
 
-    // 월드(레벨) 렌더링은 카메라만큼 좌우로 이동 — 렌더링은 이펙트 중에도 계속
+    // 월드(레벨) 렌더링은 카메라만큼 좌우로 이동 — 렌더링은 정지 중에도 계속(고정 화면 표시)
     push();
     translate(-cameraX, 0);
     drawCurrentStage();
     drawPlayer();
 
-    // 클리어 이펙트 갱신·렌더 (활성 시에만 동작)
-    updateClearEffect();
+    // 클리어 이펙트 갱신·렌더 (활성 시에만, 일시정지 중에는 갱신 멈춤)
+    if (!isPaused) updateClearEffect();
     drawClearEffect();
     pop();
 
@@ -85,11 +90,13 @@ function draw() {
     timeAndStar();
     headerUI();
 
-    // 클리어 · 실패 판정 (이펙트 중에는 실패 트리거 방지)
-    if (!clearEffect.active) {
+    // 클리어 · 실패 판정 (이펙트 · 일시정지 중에는 트리거 방지)
+    if (!clearEffect.active && !isPaused) {
       clearCondition();
       failCondition();
     }
+
+    if (isPaused) drawPauseOverlay();
   } else if (gameState === STATE.CLEAR) {
     // 클리어 화면 뒤에 정지된 스테이지 배경 잠시 노출
     push();
@@ -157,14 +164,22 @@ function handleMoveInput() {
 function keyPressed() {
   // Q=81, W=87, E=69, F=70 (물리 키 위치)
   if (gameState === STATE.PLAYING) {
-    if (keyCode === 81) changeShape("circle");
-    else if (keyCode === 87) changeShape("square");
-    else if (keyCode === 69) changeShape("triangle");
+    // 일시정지 토글: P 또는 ESC (클리어 이펙트 재생 중에는 차단해 픽업 연출을 보존)
+    if ((keyCode === 80 || keyCode === ESCAPE) && !clearEffect.active) {
+      togglePause();
+      return false;
+    }
 
-    // 점프: SPACE 또는 ↑
-    if ((keyCode === 32 || keyCode === UP_ARROW) && player.onGround) {
-      player.vy = -getJumpForce(player.shape);
-      player.onGround = false;
+    if (!isPaused) {
+      if (keyCode === 81) changeShape("circle");
+      else if (keyCode === 87) changeShape("square");
+      else if (keyCode === 69) changeShape("triangle");
+
+      // 점프: SPACE 또는 ↑
+      if ((keyCode === 32 || keyCode === UP_ARROW) && player.onGround) {
+        player.vy = -getJumpForce(player.shape);
+        player.onGround = false;
+      }
     }
   }
   if (keyCode === 70) toggleFullscreen();
@@ -179,13 +194,51 @@ function keyPressed() {
  * gameState 보고 화면별 클릭 핸들러로 라우팅 (단일 디스패처)
  */
 function mousePressed() {
-  // 최초 클릭(타이틀 START 등)을 사용자 입력으로 삼아 BGM 시작.
-  // 이후 호출은 멱등하므로 음악이 끊기지 않고 모든 화면에서 계속 흐른다.
-  playBGM("ui");
+  // BGM은 setGameState가 스테이지 진입/이탈에 맞춰 자동으로 재생·정지하므로
+  // 여기서 별도로 시작시키지 않는다(타이틀 등에서는 음악이 흐르지 않아야 함).
   if (gameState === STATE.TITLE) titleScreenClick();
   else if (gameState === STATE.STAGE_SELECT) stageSelectClick();
   else if (gameState === STATE.CLEAR) clearScreenClick();
   else if (gameState === STATE.FAIL) failScreenClick();
+}
+
+/**
+ * @function togglePause
+ * 일시정지 on/off 전환. 정지 동안 흐른 실제 시간을 pausedAccum에 누적해
+ * gmillis() 기반 게임 타이머(스테이지 시간 · 모핑 쿨다운 · 이펙트 등)가 어긋나지 않도록 한다.
+ */
+function togglePause() {
+  if (isPaused) {
+    pausedAccum += millis() - pauseStartedAt;
+    pauseStartedAt = 0;
+    isPaused = false;
+  } else {
+    pauseStartedAt = millis();
+    isPaused = true;
+  }
+}
+
+/**
+ * @function drawPauseOverlay
+ * 일시정지 중 화면에 어두운 오버레이 + 안내 문구 표시
+ */
+function drawPauseOverlay() {
+  let cx = VIEWPORT_W / 2;
+  let cy = (height / _gs) / 2;
+
+  noStroke();
+  fill(26, 27, 46, 200);
+  rect(0, 0, VIEWPORT_W, height / _gs);
+
+  fill(COLOR.uiText);
+  textAlign(CENTER, CENTER);
+  textStyle(BOLD);
+  textSize(40);
+  text("PAUSED", cx, cy - 20);
+
+  textStyle(NORMAL);
+  textSize(16);
+  text("press P or ESC to resume", cx, cy + 30);
 }
 
 /**

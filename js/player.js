@@ -96,12 +96,12 @@ function updatePlayerPhysics() {
 function changeShape(newShape) {
   if (!SHAPE_STATS[newShape]) return;
   if (player.shape === newShape) return;
-  if (millis() < player.cooldownEndTime) return;
+  if (gmillis() < player.cooldownEndTime) return;
 
   player.morphFromShape = player.shape;
   player.shape = newShape;
-  player.morphStartTime = millis();
-  player.cooldownEndTime = millis() + MORPH_COOLDOWN_MS;
+  player.morphStartTime = gmillis();
+  player.cooldownEndTime = gmillis() + MORPH_COOLDOWN_MS;
 
   setShapeStats(newShape);
 }
@@ -115,7 +115,7 @@ function drawPlayer() {
   let mainColor = COLOR[player.shape];
 
   // 모핑 진행도 (0~1)
-  let morphT = constrain((millis() - player.morphStartTime) / MORPH_DURATION_MS, 0, 1);
+  let morphT = constrain((gmillis() - player.morphStartTime) / MORPH_DURATION_MS, 0, 1);
   let isMorphing = morphT < 1 && player.morphFromShape;
 
   push();

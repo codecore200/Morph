@@ -6,15 +6,15 @@
  */
 function timeAndStar() {
   if (gameState !== STATE.PLAYING) return;
-  // 클리어 이펙트 재생 동안에는 픽업 시점 시간/별을 고정
-  if (clearEffect.active) return;
+  // 클리어 이펙트 재생 · 일시정지 동안에는 픽업/정지 시점 시간·별을 고정
+  if (clearEffect.active || isPaused) return;
   if (currentStage === 1) {
-    stage1ElapsedTime = floor((millis() - stage1StartTime) / 1000);
-    let lost = floor(stage1ElapsedTime / STAR_INTERVAL_SEC);
+    stage1ElapsedTime = floor((gmillis() - stage1StartTime) / 1000);
+    let lost = floor(stage1ElapsedTime / STAGE1_STAR_INTERVAL_SEC);
     stage1Stars = max(1, 3 - lost);
   } else if (currentStage === 2) {
-    stage2ElapsedTime = floor((millis() - stage2StartTime) / 1000);
-    let lost = floor(stage2ElapsedTime / STAR_INTERVAL_SEC);
+    stage2ElapsedTime = floor((gmillis() - stage2StartTime) / 1000);
+    let lost = floor(stage2ElapsedTime / STAGE2_STAR_INTERVAL_SEC);
     stage2Stars = max(1, 3 - lost);
   }
 }
@@ -64,7 +64,7 @@ function headerUI() {
   );
 
   // 중앙: 변신 쿨다운 게이지
-  let cdRemain = max(0, player.cooldownEndTime - millis());
+  let cdRemain = max(0, player.cooldownEndTime - gmillis());
   let cdRatio = 1 - cdRemain / MORPH_COOLDOWN_MS;
   let barW = 160;
   let barH = 8;

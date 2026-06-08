@@ -296,13 +296,16 @@ function stageSelectClick() {
 function moveToStage(stageNumber) {
   currentStage = stageNumber;
   resetClearEffect();
+  // 일시정지 상태/누적시간 초기화 — 새 스테이지는 항상 정지 없이 시작
+  isPaused = false;
+  pausedAccum = 0;
+  pauseStartedAt = 0;
   if (stageNumber === 1) {
     initialStage1();
   } else if (stageNumber === 2) {
     initialStage2();
   }
-  setGameState(STATE.PLAYING);
-  playBGM("stage" + stageNumber);
+  setGameState(STATE.PLAYING); // BGM 재생도 setGameState 내부에서 함께 시작된다
 }
 
 /**

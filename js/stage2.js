@@ -36,6 +36,11 @@ let stage2CrumblePlats = []; // 무너지는 발판 (밟으면 붕괴 후 복구
 let stage2MovePlats = [];    // 좌우 왕복 이동 발판
 let crumbleDebris = [];      // 발판 붕괴 시 파편 이펙트 큐
 
+// 사이드스크롤 확장 피날레 기믹들 (이동 발판 너머 골인 직전 구간)
+let stage2Bridge = [];        // 무게 다리 널판 — 무거운 도형이 밟으면 붕괴, 가벼운 원만 통과
+let stage2Pendulums = [];     // 스윙하는 가시구 해머 — 닿으면 실패
+let stage2Updraft = null;     // 상승 기류 구간 — 가벼운 도형이 높이 떠올라 높은 골인 발판에 도달
+
 // 배경 시차(parallax) 도형 — 분위기용으로 천천히 떠다니는 큰 도형 실루엣
 let stage2BgShapes = [];
 
@@ -47,14 +52,17 @@ function loadStage2Layout() {
   let GY = GROUND_Y;
 
   // 좌측 시작 플랫폼(절벽 위) / 우측 바닥은 갭으로 분할 — 모두 GROUND_Y 기준 상대 배치.
-  // 사이드스크롤 확장으로 RB1 내부에 이동 거리를 더 두고 골인 발판도 넓힘.
+  // 사이드스크롤 확장으로 RB1 내부에 이동 거리를 더 두고, 골인 직전 피날레 구간까지 우측으로 길게 이어진다.
   // 동선: RB1(540~1560, 풍선·센서 → 빈 구간 → 낙하 위험지대 → 점프 패드) ─갭A─▶
-  //        무너지는 발판(1730~1810) ─갭─▶ MB 디딤돌(1835~1885) ─갭B(이동 발판)─▶ RB3(1960~) 골인
+  //        무너지는 발판(1730~1810) ─갭─▶ MB 디딤돌(1835~1885) ─갭B(이동 발판)─▶ RB3 체크포인트(2150~2360)
+  //        ─무게 다리(2360~2560, 원만)─▶ RB4(2560~2920, 펜듈럼 회피) ─상승 기류(2920~3030, 원만)─▶ 높은 골인 발판(3030~)
   stage2Grounds = [
-    { x: 0,    y: GY - 100, w: 160,            h: 300 }, // 좌측 시작 플랫폼
-    { x: 540,  y: GY,       w: 1020,           h: 300 }, // RB1 (540~1560)
-    { x: 1835, y: GY,       w: 50,             h: 300 }, // MB 고정 디딤돌 (1835~1885)
-    { x: 1960, y: GY,       w: CANVAS_W - 1960, h: 300 }, // RB3 (1960~) 골인 발판
+    { x: 0,    y: GY - 100, w: 160,  h: 300 }, // 좌측 시작 플랫폼
+    { x: 540,  y: GY,       w: 1020, h: 300 }, // RB1 (540~1560)
+    { x: 1835, y: GY,       w: 50,   h: 300 }, // MB 고정 디딤돌 (1835~1885)
+    { x: 2150, y: GY,       w: 210,  h: 300 }, // RB3 체크포인트 (2150~2360)
+    { x: 2560, y: GY,       w: 360,  h: 300 }, // RB4 (2560~2920) 펜듈럼 구간
+    { x: 3030, y: GY - 160, w: CANVAS_W - 3030, h: 460 }, // 높은 골인 발판 (3030~) — 상승 기류로만 도달
   ];
 
   // 경사면: 좌측 플랫폼 우단(GROUND_Y-100) → 우측 플랫폼 상단(GROUND_Y)
@@ -74,7 +82,8 @@ function loadStage2Layout() {
   stage2ShapeSensor = { x: 696, y: GY - 8,   w: 20, h: 8,
                         activated: false, revealed: false, revealedAt: 0,
                         targetY: GY - 8 };
-  stage2ClearItem   = { x: 1972, y: GY - 50, w: 24, h: 32 };
+  // 클리어 아이템은 피날레 끝 — 상승 기류로 오른 높은 골인 발판(GY-160) 위에 배치
+  stage2ClearItem   = { x: 3120, y: GY - 210, w: 24, h: 32 };
 
   // 문 위 천장 벽 — HUD 하단(y=52)부터 문 상단(GROUND_Y-100)까지
   stage2Walls = [
@@ -93,10 +102,28 @@ function loadStage2Layout() {
   stage2CrumblePlats = [
     { x: 1730, y: GY, w: 80, h: 18, state: "solid", shakeAt: 0, goneAt: 0 },
   ];
-  // 좌우 왕복 이동 발판: 갭B(1885~1960)를 메우며 왕복(1895~1945). MB↔RB3 사이라 양쪽 고정 → 운빨 없음
+  // 좌우 왕복 이동 발판: 갭B(1885~2150)를 가로질러 더 크게 왕복(1885~2100). MB↔RB3 사이라 양쪽 고정 → 운빨 없음
   stage2MovePlats = [
-    { baseX: 1895, x: 1895, y: GY - 6, w: 50, h: 16, range: 15, phase: 0 },
+    { baseX: 1993, x: 1993, y: GY - 6, w: 50, h: 16, range: 108, phase: 0 },
   ];
+
+  // --- 사이드스크롤 확장 피날레 기믹 배치 ---
+  // 무게 다리: 갭C(2360~2560) 위 5개 널판. 무거운 도형이 밟으면 균열 후 붕괴 → 가벼운 원만 안전하게 건넘
+  stage2Bridge = [];
+  for (let i = 0; i < 5; i++) {
+    stage2Bridge.push({
+      x: 2360 + i * 40, y: GY, w: 40, h: 16,
+      state: "solid", crackAt: 0, goneAt: 0,
+    });
+  }
+  // 펜듈럼 해머 2기: RB4 통로 위에서 엇갈린 위상(0, PI)으로 스윙 — 타이밍 맞춰 달려 통과.
+  // 좌우 반경 ≈122px라 가시구가 통로(2560~2920) 안에만 머물러 상승 기류를 침범하지 않는다.
+  stage2Pendulums = [
+    { pivotX: 2660, pivotY: GY - 200, phase: 0 },
+    { pivotX: 2780, pivotY: GY - 200, phase: PI },
+  ];
+  // 상승 기류: RB4 끝(2920)과 높은 골인 발판(3030) 사이 수직 통로. 가벼운 도형일수록 높이 떠오름
+  stage2Updraft = { x: 2920, y: GY - 220, w: 110, h: 360 };
 
   // 우측 통로의 낙하 삼각형 장애물 웨이브 셋업
   initStage2Hazards();
@@ -316,7 +343,7 @@ function updateJumpPad(pad) {
     let boost = JUMP_PAD_POWER / max(JUMP_PAD_MIN_MASS, player.mass);
     player.vy = -boost;
     player.onGround = false;
-    pad.firedAt = millis();
+    pad.firedAt = gmillis();
     playBGM("pop"); // 튕기는 순간 효과음(기존 사운드 재사용)
   }
 }
@@ -328,8 +355,8 @@ function updateJumpPad(pad) {
 function drawJumpPad(pad) {
   push();
   // 발동 링 (튕긴 직후 0.3초)
-  if (pad.firedAt && millis() - pad.firedAt < 300) {
-    let t = (millis() - pad.firedAt) / 300;
+  if (pad.firedAt && gmillis() - pad.firedAt < 300) {
+    let t = (gmillis() - pad.firedAt) / 300;
     noFill();
     stroke(COLOR.circle);
     strokeWeight(2 * (1 - t) + 0.5);
@@ -339,7 +366,7 @@ function drawJumpPad(pad) {
   }
 
   // 패드 본체 — 살짝 눌렸다 튀는 느낌
-  let press = pad.firedAt && millis() - pad.firedAt < 120 ? 3 : 0;
+  let press = pad.firedAt && gmillis() - pad.firedAt < 120 ? 3 : 0;
   noStroke();
   fill(COLOR.bgFar);
   rect(pad.x, pad.y + pad.h - 4, pad.w, 6, 2); // 받침
@@ -381,7 +408,7 @@ function isStandingOn(plat) {
  */
 function updateCrumblePlat(c) {
   if (c.state === "gone") {
-    if (millis() - c.goneAt > CRUMBLE_RESPAWN_MS) c.state = "solid";
+    if (gmillis() - c.goneAt > CRUMBLE_RESPAWN_MS) c.state = "solid";
     return; // 붕괴 중에는 발판 없음
   }
 
@@ -390,11 +417,11 @@ function updateCrumblePlat(c) {
 
   if (c.state === "solid" && isStandingOn(c)) {
     c.state = "shaking";
-    c.shakeAt = millis();
+    c.shakeAt = gmillis();
   }
-  if (c.state === "shaking" && millis() - c.shakeAt > CRUMBLE_SHAKE_MS) {
+  if (c.state === "shaking" && gmillis() - c.shakeAt > CRUMBLE_SHAKE_MS) {
     c.state = "gone";
-    c.goneAt = millis();
+    c.goneAt = gmillis();
     spawnCrumbleDebris(c);
   }
 }
@@ -424,7 +451,7 @@ function drawCrumblePlat(c) {
   // 붕괴 임박할수록 크게 흔들림
   let shake = 0;
   if (c.state === "shaking") {
-    let prog = (millis() - c.shakeAt) / CRUMBLE_SHAKE_MS;
+    let prog = (gmillis() - c.shakeAt) / CRUMBLE_SHAKE_MS;
     shake = (1 + prog * 2) * random(-1, 1);
   }
   translate(shake, shake * 0.5);
@@ -551,6 +578,226 @@ function drawMovePlat(p) {
   pop();
 }
 
+/* ============================================================
+ * 무게 다리 — 무거운 도형이 밟으면 붕괴, 가벼운 원만 통과 (질량 게이트)
+ * ========================================================== */
+
+/**
+ * @function updateBridgePlank
+ * solid → (무거운 도형이 밟으면) cracking → (유예 후) gone → (시간 후) solid 순환.
+ * 원(0.7)은 BRIDGE_MASS_LIMIT 이하라 균열을 일으키지 않아 안전하게 건넌다.
+ */
+function updateBridgePlank(b) {
+  if (b.state === "gone") {
+    if (millis() - b.goneAt > BRIDGE_RESPAWN_MS) b.state = "solid";
+    return; // 붕괴 중에는 발판 없음
+  }
+
+  // solid / cracking 모두 밟을 수 있음
+  blockOnSolid(b);
+
+  // 무거운 도형(질량 초과)이 윗면에 올라서면 균열 시작
+  if (b.state === "solid" && isStandingOn(b) && player.mass > BRIDGE_MASS_LIMIT) {
+    b.state = "cracking";
+    b.crackAt = millis();
+  }
+  if (b.state === "cracking" && millis() - b.crackAt > BRIDGE_CRACK_MS) {
+    b.state = "gone";
+    b.goneAt = millis();
+    spawnCrumbleDebris(b);
+  }
+}
+
+/**
+ * @function drawBridgePlank
+ * 상태별 렌더링 — solid/cracking(나무 널판+흔들림), gone(복구 예고 점선)
+ */
+function drawBridgePlank(b) {
+  if (b.state === "gone") {
+    let blink = 0.16 + 0.14 * sin(millis() * 0.012);
+    push();
+    noFill();
+    stroke(COLOR.box);
+    strokeWeight(1.5);
+    drawingContext.setLineDash([4, 4]);
+    drawingContext.globalAlpha = blink;
+    rect(b.x, b.y, b.w, b.h, 2);
+    drawingContext.setLineDash([]);
+    drawingContext.globalAlpha = 1;
+    pop();
+    return;
+  }
+
+  push();
+  // 균열 임박할수록 크게 흔들림
+  let shake = 0;
+  if (b.state === "cracking") {
+    let prog = (millis() - b.crackAt) / BRIDGE_CRACK_MS;
+    shake = (1 + prog * 2.5) * random(-1, 1);
+  }
+  translate(0, shake);
+
+  // 나무 널판 본체
+  fill(COLOR.box);
+  stroke(COLOR.terrainHi);
+  strokeWeight(2);
+  rect(b.x, b.y, b.w, b.h, 2);
+  // 결/이음새
+  stroke(COLOR.bg);
+  strokeWeight(1);
+  line(b.x + b.w * 0.5, b.y + 2, b.x + b.w * 0.5, b.y + b.h - 2);
+  // 균열 진행 시 금 표시
+  if (b.state === "cracking") {
+    stroke(COLOR.spike);
+    strokeWeight(1.5);
+    line(b.x + b.w * 0.3, b.y + 1, b.x + b.w * 0.45, b.y + b.h - 1);
+    line(b.x + b.w * 0.7, b.y + 1, b.x + b.w * 0.58, b.y + b.h - 1);
+  }
+  pop();
+}
+
+/* ============================================================
+ * 펜듈럼 해머 — 좌우로 스윙하는 가시구, 닿으면 실패
+ * ========================================================== */
+
+/**
+ * @function getPendulumBob
+ * 현재 위상의 가시구(추) 중심 좌표를 진자 운동으로 계산
+ */
+function getPendulumBob(p) {
+  let angle = PENDULUM_AMP * sin(p.phase);
+  return {
+    x: p.pivotX + sin(angle) * PENDULUM_LEN,
+    y: p.pivotY + cos(angle) * PENDULUM_LEN,
+  };
+}
+
+/**
+ * @function updatePendulum
+ * 위상 진행 (사인 진자 스윙)
+ */
+function updatePendulum(p) {
+  p.phase += PENDULUM_SPEED;
+}
+
+/**
+ * @function checkPendulumCollision
+ * 어느 가시구든 플레이어와 닿으면 실패
+ */
+function checkPendulumCollision() {
+  if (clearEffect.active) return;
+  let pb = getPlayerBounds();
+  let r = PENDULUM_BOB / 2;
+  for (let p of stage2Pendulums) {
+    let bob = getPendulumBob(p);
+    let bb = { x: bob.x - r, y: bob.y - r, w: PENDULUM_BOB, h: PENDULUM_BOB };
+    if (isColliding(pb, bb)) {
+      setGameState(STATE.FAIL);
+      return;
+    }
+  }
+}
+
+/**
+ * @function drawPendulum
+ * 피벗 + 체인(팔) + 가시 박힌 추 렌더링
+ */
+function drawPendulum(p) {
+  let bob = getPendulumBob(p);
+  let r = PENDULUM_BOB / 2;
+  push();
+  // 체인(팔)
+  stroke(COLOR.terrainHi);
+  strokeWeight(3);
+  line(p.pivotX, p.pivotY, bob.x, bob.y);
+  // 피벗
+  noStroke();
+  fill(COLOR.terrainHi);
+  ellipse(p.pivotX, p.pivotY, 10, 10);
+  // 가시(8방향)
+  stroke(COLOR.spike);
+  strokeWeight(2);
+  for (let i = 0; i < 8; i++) {
+    let a = (TWO_PI * i) / 8;
+    line(
+      bob.x + cos(a) * r, bob.y + sin(a) * r,
+      bob.x + cos(a) * (r + 5), bob.y + sin(a) * (r + 5)
+    );
+  }
+  // 추 본체
+  noStroke();
+  fill(COLOR.spike);
+  ellipse(bob.x, bob.y, PENDULUM_BOB, PENDULUM_BOB);
+  fill(COLOR.bg);
+  ellipse(bob.x, bob.y, PENDULUM_BOB * 0.4, PENDULUM_BOB * 0.4);
+  pop();
+}
+
+/* ============================================================
+ * 상승 기류 — 가벼운 도형일수록 강하게 떠오름 (질량 게이트)
+ * ========================================================== */
+
+/**
+ * @function updateUpdraft
+ * 구간 안에 있으면 질량에 반비례한 상승 가속을 가함. 원(0.7)은 강하게 솟아
+ * 높은 골인 발판에 닿고, 사각형(1.6)은 거의 못 떠 추락한다.
+ */
+function updateUpdraft(zone) {
+  if (!zone) return;
+  let pb = getPlayerBounds();
+  if (!isColliding(pb, zone)) return;
+  let lift = UPDRAFT_POWER / max(JUMP_PAD_MIN_MASS, player.mass);
+  player.vy -= lift;
+  if (player.vy < -UPDRAFT_RISE_MAX) player.vy = -UPDRAFT_RISE_MAX;
+  player.onGround = false;
+}
+
+/**
+ * @function drawUpdraft
+ * 구간 배경 + 경계 점선 + 위로 흐르는 화살표 애니메이션
+ */
+function drawUpdraft(zone) {
+  if (!zone) return;
+  push();
+  // 옅은 청록 배경
+  noStroke();
+  drawingContext.globalAlpha = 0.08;
+  fill(COLOR.circle);
+  rect(zone.x, zone.y, zone.w, zone.h);
+  drawingContext.globalAlpha = 1;
+
+  // 경계 점선
+  stroke(COLOR.circle);
+  strokeWeight(1.5);
+  drawingContext.setLineDash([6, 6]);
+  drawingContext.globalAlpha = 0.4;
+  line(zone.x, zone.y, zone.x, zone.y + zone.h);
+  line(zone.x + zone.w, zone.y, zone.x + zone.w, zone.y + zone.h);
+  drawingContext.setLineDash([]);
+  drawingContext.globalAlpha = 1;
+
+  // 위로 흐르는 화살표 (4개가 순환 상승)
+  let cx = zone.x + zone.w / 2;
+  noStroke();
+  fill(COLOR.circle);
+  textAlign(CENTER, CENTER);
+  textStyle(BOLD);
+  textSize(18);
+  for (let i = 0; i < 4; i++) {
+    let t = (millis() * 0.06 + i * (zone.h / 4)) % zone.h;
+    let yy = zone.y + zone.h - t;
+    drawingContext.globalAlpha = 0.2 + 0.4 * (t / zone.h);
+    text("▲", cx, yy);
+  }
+  drawingContext.globalAlpha = 1;
+
+  // 라벨
+  fill(COLOR.circle);
+  textSize(10);
+  text("LIFT", cx, zone.y - 8);
+  pop();
+}
+
 /**
  * @function revealSensorWhenBalloonsGone
  * 살아있는 풍선이 하나도 없을 때 센서를 처음 공개 (바닥에서 솟아오르는 트리거)
@@ -559,7 +806,7 @@ function revealSensorWhenBalloonsGone() {
   if (stage2ShapeSensor.revealed) return;
   if (stage2Balloons.some(b => b.alive)) return;
   stage2ShapeSensor.revealed = true;
-  stage2ShapeSensor.revealedAt = millis();
+  stage2ShapeSensor.revealedAt = gmillis();
 }
 
 /**
@@ -570,11 +817,11 @@ function revealSensorWhenBalloonsGone() {
 function handleShapeSensor(sensor, door) {
   if (!sensor.revealed) return;
   if (sensor.activated) return;
-  if (millis() - sensor.revealedAt < 500) return; // 솟아오르는 중에는 인식 불가
+  if (gmillis() - sensor.revealedAt < 500) return; // 솟아오르는 중에는 인식 불가
   if (!isColliding(getPlayerBounds(), sensor)) return;
   if (player.shape !== "square") return;
   sensor.activated = true;
-  sensor.activatedAt = millis();
+  sensor.activatedAt = gmillis();
   openDoor(door);
 }
 
@@ -602,7 +849,7 @@ function initialStage2() {
   balloonPops = [];
   crumbleDebris = [];
 
-  stage2StartTime = millis();
+  stage2StartTime = gmillis();
   stage2ElapsedTime = 0;
   stage2Stars = 3;
 }
@@ -629,7 +876,7 @@ function spawnBalloonPop(cx, cy) {
       decay: random(0.028, 0.042),
     });
   }
-  balloonPops.push({ x: cx, y: cy, startAt: millis(), particles: parts });
+  balloonPops.push({ x: cx, y: cy, startAt: gmillis(), particles: parts });
 }
 
 /**
@@ -658,7 +905,7 @@ function updateBalloonPops() {
  */
 function drawBalloonPops() {
   for (let bp of balloonPops) {
-    let age = millis() - bp.startAt;
+    let age = gmillis() - bp.startAt;
     let ringT = constrain(age / 220, 0, 1);
     if (ringT < 1) {
       push();
@@ -703,7 +950,12 @@ function updateStage2() {
   for (let c of stage2CrumblePlats) updateCrumblePlat(c);
   for (let mp of stage2MovePlats) updateMovePlat(mp);
 
-  // 풍선 상호작용
+  // 사이드스크롤 확장 피날레 — 무게 다리(원만) → 펜듈럼 회피 → 상승 기류(원만)
+  for (let b of stage2Bridge) updateBridgePlank(b);
+  for (let p of stage2Pendulums) updatePendulum(p);
+  updateUpdraft(stage2Updraft);
+
+  // 풍선 상호작용 (센서용 풍선)
   for (let b of stage2Balloons) {
     handleBalloonInteraction(b);
   }
@@ -723,6 +975,9 @@ function updateStage2() {
   // 우측 통로의 낙하 삼각형 장애물 — 갱신 후 충돌 시 실패
   updateStage2Hazards();
   checkHazardCollision();
+
+  // 펜듈럼 해머 — 닿으면 실패
+  checkPendulumCollision();
 
   // 이펙트 파티클 갱신
   updateBalloonPops();
@@ -770,7 +1025,11 @@ function drawStage2() {
   for (let mp of stage2MovePlats) drawMovePlat(mp);
   drawCrumbleDebris();
 
-  // 풍선
+  // 사이드스크롤 확장 피날레 지형류 — 상승 기류(배경) → 무게 다리
+  drawUpdraft(stage2Updraft);
+  for (let b of stage2Bridge) drawBridgePlank(b);
+
+  // 풍선 (센서용)
   for (let b of stage2Balloons) {
     if (!b.alive) continue;
     noStroke();
@@ -797,7 +1056,7 @@ function drawStage2() {
   if (stage2ShapeSensor.revealed) {
     let sensor = stage2ShapeSensor;
     let floorY = stage2Grounds[1].y; // RB1 윗면 — 플랫폼 표면
-    let elapsed = millis() - sensor.revealedAt;
+    let elapsed = gmillis() - sensor.revealedAt;
     let riseT = constrain(elapsed / 500, 0, 1);
     // 바닥면(floorY)에서 targetY까지 솟아오름
     let drawY = lerp(floorY, sensor.targetY, riseT);
@@ -868,6 +1127,9 @@ function drawStage2() {
   // 우측 통로의 낙하 삼각형 장애물 (위험 구간 + 떨어지는 삼각형)
   drawStage2Hazards();
 
+  // 펜듈럼 해머 (전경 위협 — 가장 잘 보이게 마지막에)
+  for (let p of stage2Pendulums) drawPendulum(p);
+
   // 클리어 아이템 (획득 후에는 숨김 — 파티클 이펙트가 자리를 대체)
   if (!stage2ClearItem.collected) {
     push();
@@ -888,7 +1150,7 @@ function drawStage2() {
     pop();
   }
 
-  // 힌트 텍스트 (두 줄)
+  // 힌트 텍스트 (세 줄)
   fill(COLOR.uiText);
   textAlign(LEFT, TOP);
   textSize(12);
@@ -899,8 +1161,13 @@ function drawStage2() {
     58
   );
   text(
-    "      원(Q)으로 삼각형 비 질주 → 점프대(가벼운 원이 가장 높이!) → 무너지는 발판 빠르게 → 흔들 발판 타이밍 점프 → ★",
+    "      원(Q)으로 삼각형 비 질주 → 점프대(가벼운 원이 가장 높이!) → 무너지는 발판 빠르게 → 흔들 발판 타이밍 점프",
     16,
     74
+  );
+  text(
+    "      [피날레] 무게 다리는 가벼운 원(Q)만 통과 → 펜듈럼 해머 타이밍 회피 → 상승 기류 타고 원으로 솟아 ★",
+    16,
+    90
   );
 }

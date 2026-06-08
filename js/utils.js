@@ -42,10 +42,18 @@ function getPlayerBounds() {
 
 /**
  * @function setGameState
- * gameState 변경 (스테이지 시작 시간은 각 initialStageX가 설정하므로 여기선 상태만 전환)
+ * gameState 변경 (스테이지 시작 시간은 각 initialStageX가 설정하므로 여기선 상태만 전환).
+ * BGM은 스테이지 플레이 중에만 흐르도록 여기서 함께 관리한다 —
+ * PLAYING으로 들어갈 때 재생 시작, PLAYING에서 벗어날 때 정지.
  */
 function setGameState(newState) {
+  let wasPlaying = gameState === STATE.PLAYING;
   gameState = newState;
+  if (newState === STATE.PLAYING) {
+    playBGM("stage" + currentStage);
+  } else if (wasPlaying) {
+    stopBGM();
+  }
 }
 
 /**
@@ -55,6 +63,18 @@ function setGameState(newState) {
  */
 function gameMX() { return mouseX / _gs; }
 function gameMY() { return mouseY / _gs; }
+
+/**
+ * @function gmillis
+ * 일시정지 시간을 제외한 게임 전용 경과시간(ms).
+ * 일시정지 중에는 멈춰 있고, 재개 시 정지했던 만큼을 누적해 보정한다.
+ * 스테이지 타이머 · 모핑 쿨다운 · 이펙트 등 게임 로직의 모든 시간 비교는
+ * millis() 대신 이 함수를 사용해야 일시정지 동안 어긋나지 않는다.
+ */
+function gmillis() {
+  if (isPaused) return pauseStartedAt - pausedAccum;
+  return millis() - pausedAccum;
+}
 
 // localStorage에 저장되는 스테이지 클리어 기록 키
 const STAGE_CLEAR_STORAGE_KEY = "morph_stage_clears";
